@@ -3,71 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sandbox on AWS Demo UI</title>
+    <title>AgentCore on AWS Demo UI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        .nav-tabs .nav-link {
-            color: #495057;
-            font-weight: 500;
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
-        .nav-tabs .nav-link.active {
-            color: #0d6efd;
-            font-weight: 600;
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
-        .coming-soon-badge {
-            font-size: 0.65rem;
-            margin-left: 5px;
-            padding: 0.25em 0.5em;
-            vertical-align: middle;
-            font-weight: normal;
+
+        .aws-gradient {
+            background: linear-gradient(135deg, #FF9900 0%, #FF6B00 100%);
         }
+
+        .scroll-fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .scroll-fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes ripple {
+            from {
+                transform: scale(0);
+                opacity: 1;
+            }
+            to {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
         .hero-section {
-            background-color: #f8f9fa;
-            padding: 3rem 0;
-            border-radius: 8px;
-            margin-bottom: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 5rem 0;
+            border-radius: 0;
+            margin-bottom: 0;
+            color: white;
+            position: relative;
+            overflow: hidden;
         }
+
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
+            opacity: 0.3;
+        }
+
         .feature-card {
-            border: none;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 2px solid transparent;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             height: 100%;
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
+            background: white;
         }
+
         .feature-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-10px);
+            border-color: #667eea;
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2);
         }
+
+        .icon-wrapper {
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover .icon-wrapper {
+            transform: scale(1.1) rotate(5deg);
+        }
+
         .feature-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            color: #0d6efd;
+            font-size: 2rem;
+            color: white;
         }
+        .benefit-item {
+            transition: all 0.3s ease;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+
+        .benefit-item:hover {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            transform: translateX(5px);
+        }
+
+        .benefit-icon-wrapper {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .benefit-item:hover .benefit-icon-wrapper i {
+            transform: scale(1.2) rotate(10deg);
+        }
+
         .architecture-img {
             max-width: 100%;
-            border-radius: 8px;
+            border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-        .tech-badge {
-            background-color: #e9ecef;
-            color: #495057;
-            font-weight: 500;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        /* Enhanced image interaction styles */
-        .architecture-img {
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             cursor: pointer;
         }
-        
+
         .architecture-img:hover {
             transform: scale(1.02);
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
         }
-        
+
+        .tech-badge {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-weight: 500;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .stats-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .why-choose-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .why-choose-card:hover .why-choose-icon {
+            transform: scale(1.1);
+        }
+
         #modalImage {
             max-height: 85vh;
             object-fit: contain;
@@ -76,317 +211,567 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             transition: transform 0.3s ease;
         }
-        
+
         .modal-xl {
             max-width: 90%;
         }
-        
+
         .modal-content {
             background-color: #f8f9fa;
             border: none;
             border-radius: 8px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
         }
-        
+
         .modal-header {
             border-bottom: 1px solid rgba(0, 0, 0, 0.1);
             background-color: #ffffff;
             border-radius: 8px 8px 0 0;
         }
-        
+
         .modal-footer {
             border-top: 1px solid rgba(0, 0, 0, 0.1);
             background-color: #ffffff;
             border-radius: 0 0 8px 8px;
         }
-        
+
         .modal-body {
             padding: 20px;
             background-color: #ffffff;
         }
 
-        /* GitHub link styles */
-        .github-link {
-            color: #333;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 6px;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            transition: all 0.2s ease-in-out;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+        .cta-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
         }
 
-        .github-link:hover {
-            color: #0d6efd;
-            background-color: #e9ecef;
-            border-color: #0d6efd;
-            text-decoration: none;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        .cta-button {
+            background: white;
+            color: #667eea;
+            font-weight: 600;
+            padding: 12px 32px;
+            border-radius: 8px;
+            border: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
-        .github-icon {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+            background: #f8f9fa;
+        }
+
+        .cta-button-outline {
+            background: transparent;
+            color: white;
+            font-weight: 600;
+            padding: 12px 32px;
+            border-radius: 8px;
+            border: 2px solid white;
+            transition: all 0.3s ease;
+        }
+
+        .cta-button-outline:hover {
+            background: white;
+            color: #667eea;
+            transform: translateY(-2px);
         }
     </style>
 </head>
 <body>
     <div class="container-fluid">
-        <div class="row header">
-            <div class="col-12 d-flex justify-content-between align-items-center">
-                <h1><i class="fas fa-cube me-2"></i>Sandbox on AWS Demo UI</h1>
-                <div class="d-flex align-items-center gap-3">
-                    <a href="https://github.com/teaguexiao/sandbox-on-aws-demo" target="_blank" rel="noopener noreferrer" class="github-link">
-                        <svg class="github-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.30.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-                        </svg>
-                        View Source
-                    </a>
-                    {% if user %}
-                    <div class="user-info">
-                        <i class="fas fa-user"></i>
-                        Welcome, {{ user.username }}!
-                        <a href="/logout" class="logout-btn text-decoration-none">
-                            <i class="fas fa-sign-out-alt"></i> Logout
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <!-- Navigation Tabs -->
-        <div class="row mb-3">
-            <div class="col-12">
-                <ul class="nav nav-tabs" id="sandboxTabs">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="/">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/sandbox-lifecycle">Sandbox Lifecycle</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/browser-use">Browser Use</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/code-interpreter">Code Interpreter</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/computer-use">Computer Use</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/ai-search">AI Search <span class="badge bg-warning text-dark coming-soon-badge">Coming Soon</span></a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/ai-ppt">AI PPT <span class="badge bg-warning text-dark coming-soon-badge">Coming Soon</span></a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-        
+        {% include 'partials/header.html' %}
+
         <!-- Hero Section -->
-        <div class="row hero-section">
-            <div class="col-md-8 offset-md-2 text-center">
-                <h2 class="display-4 mb-4">Sandbox on AWS</h2>
-                <p class="lead mb-4">A powerful solution <strong>purpose-built for agentic workloads</strong>, providing secure, scalable, and flexible AI agent environments using E2B sandbox, AWS Lambda, and AWS Fargate.</p>
-                <div class="d-flex justify-content-center flex-wrap">
-                    <span class="badge tech-badge p-2">E2B Sandbox</span>
-                    <span class="badge tech-badge p-2">AWS Lambda</span>
-                    <span class="badge tech-badge p-2">AWS Fargate</span>
-                    <span class="badge tech-badge p-2">Claude 3.7/4 Sonnet</span>
+        <div class="row hero-section mx-0 px-3 px-md-4">
+            <div class="container" style="max-width: 1140px;">
+                <div class="row align-items-center py-5">
+                    <div class="col-lg-6 mb-4 mb-lg-0 scroll-fade-in">
+                        <h1 class="display-3 fw-bold mb-4">Build Intelligent Agents with <span class="d-block">AWS Agentcore</span></h1>
+                        <p class="lead mb-4" style="color: rgba(255, 255, 255, 0.9);">
+                            A powerful solution <strong>purpose-built for agentic workloads</strong>, providing secure, scalable, and flexible AI agent environments using AWS Bedrock Agentcore, AWS Lambda, and AWS Fargate.
+                        </p>
+                        <div class="d-flex flex-wrap gap-2 mb-4">
+                            <span class="badge tech-badge p-2">AWS Bedrock Agentcore</span>
+                            <span class="badge tech-badge p-2">AWS Lambda</span>
+                            <span class="badge tech-badge p-2">AWS Fargate</span>
+                            <span class="badge tech-badge p-2">Claude 3.7/4 Sonnet</span>
+                        </div>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <button class="cta-button">
+                                <i class="fas fa-rocket me-2"></i>Get Started
+                            </button>
+                            <button class="cta-button-outline">
+                                <i class="fas fa-book me-2"></i>Documentation
+                            </button>
+                        </div>
+                        <div class="row mt-5 text-center text-lg-start">
+                            <div class="col-4">
+                                <div class="stat-number" id="stat-developers">0</div>
+                                <div class="stat-label">Active Developers</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-number" id="stat-calls">0</div>
+                                <div class="stat-label">API Calls/Month</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-number" id="stat-uptime">0</div>
+                                <div class="stat-label">Uptime</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 d-none d-lg-block">
+                        <div class="float-animation">
+                            <div class="stats-card">
+                                <div class="mb-3 pb-3" style="border-bottom: 1px solid rgba(255, 255, 255, 0.2);">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="status-indicator bg-success"></span>
+                                        <span class="fw-semibold">Agent Runtime Active</span>
+                                    </div>
+                                    <div class="small" style="color: rgba(255, 255, 255, 0.7);">Status: Running | Memory: Optimized</div>
+                                </div>
+                                <div class="mb-3 pb-3" style="border-bottom: 1px solid rgba(255, 255, 255, 0.2);">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="status-indicator bg-info"></span>
+                                        <span class="fw-semibold">Gateway Connected</span>
+                                    </div>
+                                    <div class="small" style="color: rgba(255, 255, 255, 0.7);">Requests: 1.2M | Latency: 45ms</div>
+                                </div>
+                                <div>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="status-indicator bg-warning"></span>
+                                        <span class="fw-semibold">Tools Integrated</span>
+                                    </div>
+                                    <div class="small" style="color: rgba(255, 255, 255, 0.7);">Active Tools: 24 | Success Rate: 98%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        
+
         <!-- Agentic Workload Section -->
-        <div class="row mb-5">
-            <div class="col-md-10 offset-md-1">
-                <div class="alert alert-primary" role="alert">
-                    <h4 class="alert-heading">Optimized for Agentic Workloads</h4>
-                    <p>Sandbox on AWS is specifically designed to handle the unique requirements of AI agents. Unlike traditional computing environments, our solution provides the perfect balance of freedom and control that autonomous agents need to perform complex tasks while maintaining security and reliability.</p>
+        <div class="row mb-5 mt-5">
+            <div class="col-md-10 offset-md-1 scroll-fade-in">
+                <div class="alert alert-primary" role="alert" style="border-radius: 12px; border: none; box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);">
+                    <h4 class="alert-heading"><i class="fas fa-robot me-2"></i>Optimized for Agentic Workloads</h4>
+                    <p>AWS Agentcore is specifically designed to handle the unique requirements of AI agents. Built on AWS Bedrock, our solution provides the perfect balance of freedom and control that autonomous agents need to perform complex tasks while maintaining security and reliability.</p>
                     <hr>
-                    <p class="mb-0">Whether your agents need to browse the web, use desktop applications, write code, or create presentations, our infrastructure provides the ideal foundation for all agentic scenarios.</p>
+                    <p class="mb-0">Whether your agents need to browse the web, use desktop applications, write code, or create presentations, AWS Agentcore provides the ideal foundation for all agentic scenarios.</p>
                 </div>
             </div>
         </div>
-        
+
         <!-- Features Section -->
         <div class="row mb-5">
-            <div class="col-12 text-center mb-4">
-                <h3>Key Benefits</h3>
+            <div class="col-12 text-center mb-5 scroll-fade-in">
+                <h2 class="display-5 fw-bold mb-3">Core Features</h2>
+                <p class="lead text-muted">Agentcore provides four core components for complete intelligent agent development</p>
             </div>
-            
-            <div class="col-md-4 mb-4">
-                <div class="card feature-card p-4">
+
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card feature-card p-4 scroll-fade-in">
                     <div class="card-body text-center">
-                        <div class="feature-icon">🔒</div>
-                        <h4 class="card-title">Secure Execution</h4>
-                        <p class="card-text">Run AI agents in isolated sandboxes with controlled access to resources, ensuring security and preventing unauthorized actions.</p>
+                        <div class="icon-wrapper mx-auto" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                            <i class="fas fa-server feature-icon"></i>
+                        </div>
+                        <h4 class="card-title fw-bold mb-3">Agent Runtime</h4>
+                        <p class="card-text text-muted">High-performance execution environment with multi-language support, auto-scaling, and zero-downtime deployment.</p>
+                        <ul class="list-unstyled text-start mt-3 small">
+                            <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i>Multi-language support</li>
+                            <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i>Auto-scaling capabilities</li>
+                            <li><i class="fas fa-check-circle text-primary me-2"></i>Zero-downtime deployment</li>
+                        </ul>
                     </div>
                 </div>
             </div>
-            
-            <div class="col-md-4 mb-4">
-                <div class="card feature-card p-4">
+
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card feature-card p-4 scroll-fade-in">
                     <div class="card-body text-center">
-                        <div class="feature-icon">⚡</div>
-                        <h4 class="card-title">Scalable Infrastructure</h4>
-                        <p class="card-text">Leverage AWS Lambda and Fargate to automatically scale resources based on demand, handling multiple concurrent agent tasks efficiently.</p>
+                        <div class="icon-wrapper mx-auto" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                            <i class="fas fa-brain feature-icon"></i>
+                        </div>
+                        <h4 class="card-title fw-bold mb-3">Memory System</h4>
+                        <p class="card-text text-muted">Advanced memory management for context retention, user preferences, and personalized interactions.</p>
+                        <ul class="list-unstyled text-start mt-3 small">
+                            <li class="mb-2"><i class="fas fa-check-circle text-purple me-2" style="color: #8b5cf6;"></i>Long-term memory storage</li>
+                            <li class="mb-2"><i class="fas fa-check-circle text-purple me-2" style="color: #8b5cf6;"></i>Vector-based retrieval</li>
+                            <li><i class="fas fa-check-circle text-purple me-2" style="color: #8b5cf6;"></i>Smart compression</li>
+                        </ul>
                     </div>
                 </div>
             </div>
-            
-            <div class="col-md-4 mb-4">
-                <div class="card feature-card p-4">
+
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card feature-card p-4 scroll-fade-in">
                     <div class="card-body text-center">
-                        <div class="feature-icon">🧩</div>
-                        <h4 class="card-title">Flexible Use Cases</h4>
-                        <p class="card-text">Support diverse scenarios from browser automation to coding assistance, search, and presentation creation with a unified infrastructure.</p>
+                        <div class="icon-wrapper mx-auto" style="background: linear-gradient(135deg, #10b981, #059669);">
+                            <i class="fas fa-network-wired feature-icon"></i>
+                        </div>
+                        <h4 class="card-title fw-bold mb-3">API Gateway</h4>
+                        <p class="card-text text-muted">Enterprise-grade gateway with authentication, rate limiting, and comprehensive monitoring.</p>
+                        <ul class="list-unstyled text-start mt-3 small">
+                            <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>OAuth 2.0 & JWT support</li>
+                            <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Smart rate limiting</li>
+                            <li><i class="fas fa-check-circle text-success me-2"></i>Real-time monitoring</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="card feature-card p-4 scroll-fade-in">
+                    <div class="card-body text-center">
+                        <div class="icon-wrapper mx-auto" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                            <i class="fas fa-tools feature-icon"></i>
+                        </div>
+                        <h4 class="card-title fw-bold mb-3">Tools Ecosystem</h4>
+                        <p class="card-text text-muted">Rich library of pre-built tools and flexible framework for custom integrations.</p>
+                        <ul class="list-unstyled text-start mt-3 small">
+                            <li class="mb-2"><i class="fas fa-check-circle me-2" style="color: #f59e0b;"></i>50+ pre-built tools</li>
+                            <li class="mb-2"><i class="fas fa-check-circle me-2" style="color: #f59e0b;"></i>Custom tool framework</li>
+                            <li><i class="fas fa-check-circle me-2" style="color: #f59e0b;"></i>Community marketplace</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Architecture Section -->
-        <div class="row mb-5">
-            <div class="col-12 text-center mb-4">
-                <h3>Architecture Overview</h3>
+
+        <!-- Why Choose Section -->
+        <div class="row mb-5 py-5 bg-white">
+            <div class="col-12 text-center mb-5 scroll-fade-in">
+                <h2 class="display-5 fw-bold mb-3">Why Choose AWS Agentcore?</h2>
+                <p class="lead text-muted">The best choice for building intelligent agent applications with unmatched performance, security, and ease of use</p>
             </div>
-            
-            <div class="col-md-10 offset-md-1 text-center">
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <img src="/static/images/sandbox-on-aws-architecutre-diagram.png" alt="Sandbox on AWS Architecture Diagram" class="architecture-img mb-3">
-                        <p class="text-muted">The architecture leverages E2B sandboxes for secure execution environments, AWS Lambda for serverless compute, and AWS Fargate for containerized workloads.</p>
+
+            <div class="col-md-4 mb-4">
+                <div class="text-center scroll-fade-in why-choose-card">
+                    <div class="why-choose-icon" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.2));">
+                        <i class="fas fa-bolt" style="font-size: 2.5rem; color: #3b82f6;"></i>
                     </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <h4 class="mb-3">E2B Data Flow</h4>
-                        <img src="/static/images/e2b_infra_data_flow_simplify.jpg" alt="E2B Infrastructure Data Flow" class="architecture-img mb-3">
-                        <p class="text-muted">This diagram illustrates how data flows through the E2B infrastructure, helping developers understand the technical benefits of this approach.</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h4 class="mb-3">Lambda Sandbox Workflow</h4>
-                        <img src="/static/images/lambda_code_interpreter.png" alt="Lambda Sandbox Workflow" class="architecture-img mb-3">
-                        <p class="text-muted">This diagram shows the workflow of the Lambda sandbox code interpreter implementation.</p>
-                    </div>
+                    <h4 class="fw-bold mb-3">Ultimate Performance</h4>
+                    <p class="text-muted">Built on AWS global infrastructure with millisecond response times and 99.9% uptime guarantee</p>
                 </div>
             </div>
-        </div>
-        
-        <!-- Use Cases Section -->
-        <div class="row mb-5">
-            <div class="col-12 text-center mb-4">
-                <h3>Supported Scenarios</h3>
+
+            <div class="col-md-4 mb-4">
+                <div class="text-center scroll-fade-in why-choose-card">
+                    <div class="why-choose-icon" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.2));">
+                        <i class="fas fa-shield-alt" style="font-size: 2.5rem; color: #8b5cf6;"></i>
+                    </div>
+                    <h4 class="fw-bold mb-3">Enterprise Security</h4>
+                    <p class="text-muted">SOC 2, ISO 27001 compliant with multi-layer security protecting your data and privacy</p>
+                </div>
             </div>
-            
-            <div class="col-md-6 offset-md-3">
-                <div class="list-group">
-                    <a href="/browser-use" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        Browser Use
-                        <span class="badge bg-primary rounded-pill">Active</span>
-                    </a>
-                    <a href="/code-interpreter" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        Code Interpreter
-                        <span class="badge bg-primary rounded-pill">Active</span>
-                    </a>
-                    <a href="/sandbox-lifecycle" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        Sandbox Lifecycle
-                        <span class="badge bg-primary rounded-pill">Active</span>
-                    </a>
-                    <a href="/computer-use" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        Computer Use
-                        <span class="badge bg-secondary rounded-pill">Coming Soon</span>
-                    </a>
-                    <a href="/ai-search" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        AI Search
-                        <span class="badge bg-secondary rounded-pill">Coming Soon</span>
-                    </a>
-                    <a href="/ai-ppt" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        AI PPT
-                        <span class="badge bg-secondary rounded-pill">Coming Soon</span>
-                    </a>
+
+            <div class="col-md-4 mb-4">
+                <div class="text-center scroll-fade-in why-choose-card">
+                    <div class="why-choose-icon" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.2));">
+                        <i class="fas fa-code" style="font-size: 2.5rem; color: #10b981;"></i>
+                    </div>
+                    <h4 class="fw-bold mb-3">Developer Friendly</h4>
+                    <p class="text-muted">Clean APIs, comprehensive docs, and active community - get started in 10 minutes</p>
                 </div>
             </div>
         </div>
-        
-        <!-- Agent Capabilities -->
-        <div class="row mb-5">
-            <div class="col-12 text-center mb-4">
-                <h3>Agent Capabilities</h3>
+
+        <!-- Customer Success Stories Section -->
+        <div class="row mb-5 py-5" style="background-color: #f8f9fa;">
+            <div class="col-12 text-center mb-5 scroll-fade-in">
+                <h2 class="display-5 fw-bold mb-3">Customer Success Stories</h2>
+                <p class="lead text-muted">See how leading organizations are transforming their operations with AWS AgentCore</p>
             </div>
-            
-            <div class="col-md-10 offset-md-1">
-                <div class="row">
-                    <div class="col-md-6 mb-4">
-                        <div class="card h-100">
-                            <div class="card-header bg-light">
-                                <h5 class="mb-0">Autonomous Operation</h5>
+
+            <!-- Case Studies Carousel -->
+            <div class="col-md-10 offset-md-1 mb-5">
+                <div class="position-relative" style="height: 650px;">
+                    <div id="caseStudiesCarousel" class="carousel slide h-100" data-bs-ride="carousel" data-bs-interval="8000">
+                        <!-- Carousel Indicators -->
+                        <div class="carousel-indicators" style="margin-bottom: -30px;">
+                            <button type="button" data-bs-target="#caseStudiesCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="MaxQuant Case Study"></button>
+                            <button type="button" data-bs-target="#caseStudiesCarousel" data-bs-slide-to="1" aria-label="Bika.ai Case Study"></button>
+                        </div>
+
+                        <!-- Carousel Items -->
+                        <div class="carousel-inner h-100">
+                            <!-- MaxQuant Case Study -->
+                            <div class="carousel-item active h-100">
+                                <div class="card border-0 shadow-lg h-100" style="border-radius: 16px; overflow: hidden;">
+                                <div class="row g-0">
+                                    <div class="col-md-5">
+                                        <div class="h-100 d-flex align-items-center justify-content-center p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                            <div class="text-center text-white">
+                                                <div class="mb-4">
+                                                    <img src="https://d1.awsstatic.com/onedam/marketing-channels/website/aws/en_US/solutions/case-studies/approved/image/quantixai/logo.d3b766e834d307c8ab2b610ae4959504df262250.png"
+                                                         alt="MaxQuant Logo"
+                                                         style="max-width: 200px; background: white; padding: 20px; border-radius: 12px;">
+                                                </div>
+                                                <h3 class="fw-bold mb-3">MaxQuant</h3>
+                                                <p class="mb-0">AI Infrastructure Platform for Financial Markets</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <div class="card-body p-5">
+                                            <div class="mb-4">
+                                                <span class="badge bg-primary mb-3" style="font-size: 0.9rem; padding: 8px 16px;">Financial Technology</span>
+                                                <h4 class="fw-bold mb-3">Agentic AI Reshapes Investment Research</h4>
+                                                <p class="text-muted mb-4">
+                                                    MaxQuant leveraged Amazon Bedrock AgentCore to build next-generation intelligent investment research and trading decision-making systems, dramatically accelerating their development cycle and reducing costs.
+                                                </p>
+                                            </div>
+
+                                            <div class="row mb-4">
+                                                <div class="col-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <i class="fas fa-clock text-primary me-3" style="font-size: 1.5rem; margin-top: 4px;"></i>
+                                                        <div>
+                                                            <h5 class="fw-bold mb-1" style="color: #667eea;">75% Faster</h5>
+                                                            <p class="small text-muted mb-0">Deployment cycle reduced from 4 weeks to 1 week</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <i class="fas fa-dollar-sign text-success me-3" style="font-size: 1.5rem; margin-top: 4px;"></i>
+                                                        <div>
+                                                            <h5 class="fw-bold mb-1" style="color: #10b981;">80% Cost Reduction</h5>
+                                                            <p class="small text-muted mb-0">Infrastructure costs cut by 80%</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <i class="fas fa-users text-info me-3" style="font-size: 1.5rem; margin-top: 4px;"></i>
+                                                        <div>
+                                                            <h5 class="fw-bold mb-1" style="color: #3b82f6;">70% Team Reduction</h5>
+                                                            <p class="small text-muted mb-0">Team size reduced from 8-10 to 2-3 members</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <i class="fas fa-rocket text-warning me-3" style="font-size: 1.5rem; margin-top: 4px;"></i>
+                                                        <div>
+                                                            <h5 class="fw-bold mb-1" style="color: #f59e0b;">12x Faster</h5>
+                                                            <p class="small text-muted mb-0">Completed in 1 month vs 12-month estimate</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="border-start border-4 border-primary ps-3 mb-4" style="background-color: #f8f9fa; padding: 1rem; border-radius: 8px;">
+                                                <p class="mb-2 fst-italic">"After adopting Amazon Bedrock AgentCore, we no longer need to rewrite task-triggering logic. By simply declaring relationships and context-passing strategies, we can orchestrate agent applications while avoiding repetitive 'reinventing the wheel' work."</p>
+                                                <p class="small mb-0 fw-semibold">— Zhang Weitong, Chief Scientist, MaxQuant</p>
+                                            </div>
+
+                                            <div class="d-flex gap-2 flex-wrap mb-3">
+                                                <span class="badge bg-light text-dark border">Amazon Bedrock AgentCore</span>
+                                                <span class="badge bg-light text-dark border">AWS Lambda</span>
+                                                <span class="badge bg-light text-dark border">Amazon EventBridge</span>
+                                                <span class="badge bg-light text-dark border">Amazon DynamoDB</span>
+                                                <span class="badge bg-light text-dark border">Amazon API Gateway</span>
+                                            </div>
+
+                                            <div class="mt-3">
+                                                <a href="https://aws.amazon.com/solutions/case-studies/quantixai/" target="_blank" class="btn btn-outline-primary">
+                                                    Read Full Case Study <i class="fas fa-external-link-alt ms-2"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <ul>
-                                    <li>Self-directed task execution without human intervention</li>
-                                    <li>Dynamic decision-making based on environment feedback</li>
-                                    <li>Error recovery and alternative path exploration</li>
-                                    <li>Long-running task persistence across sessions</li>
-                                </ul>
+                        </div>
+
+                        <!-- Bika.ai Case Study -->
+                        <div class="carousel-item h-100">
+                            <div class="card border-0 shadow-lg h-100" style="border-radius: 16px; overflow: hidden;">
+                                <div class="row g-0">
+                                    <div class="col-md-5">
+                                        <div class="h-100 d-flex align-items-center justify-content-center p-4" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                            <div class="text-center text-white">
+                                                <div class="mb-4">
+                                                    <div style="background: white; padding: 30px; border-radius: 12px; display: inline-block;">
+                                                        <h2 class="fw-bold mb-0" style="color: #f59e0b; font-size: 3rem;">Bika.ai</h2>
+                                                    </div>
+                                                </div>
+                                                <h3 class="fw-bold mb-3">Bika.ai</h3>
+                                                <p class="mb-0">AI Organization Management System for One-Person Companies</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <div class="card-body p-5">
+                                            <div class="mb-4">
+                                                <span class="badge bg-warning text-dark mb-3" style="font-size: 0.9rem; padding: 8px 16px;">AI Automation & SaaS</span>
+                                                <h4 class="fw-bold mb-3">Empowering Solo Entrepreneurs with AI Teams</h4>
+                                                <p class="text-muted mb-4">
+                                                    Bika.ai provides a complete AI organization management system for one-person companies, introducing the "AI Organizer" concept to coordinate multiple AI agents, enabling team building, automation workflow orchestration, and database-driven applications for global SMEs and individual entrepreneurs.
+                                                </p>
+                                            </div>
+
+                                            <div class="row mb-4">
+                                                <div class="col-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <i class="fas fa-dollar-sign text-success me-3" style="font-size: 1.5rem; margin-top: 4px;"></i>
+                                                        <div>
+                                                            <h5 class="fw-bold mb-1" style="color: #10b981;">30% Cost Savings</h5>
+                                                            <p class="small text-muted mb-0">Deployment and scaling costs reduced by over 30%</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <i class="fas fa-clock text-primary me-3" style="font-size: 1.5rem; margin-top: 4px;"></i>
+                                                        <div>
+                                                            <h5 class="fw-bold mb-1" style="color: #667eea;">40% Faster</h5>
+                                                            <p class="small text-muted mb-0">Build and deployment cycle shortened by ~40%</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <i class="fas fa-rocket text-warning me-3" style="font-size: 1.5rem; margin-top: 4px;"></i>
+                                                        <div>
+                                                            <h5 class="fw-bold mb-1" style="color: #f59e0b;">90% Time Saved</h5>
+                                                            <p class="small text-muted mb-0">AgentCore Browser Tool saves 90% integration time</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-6 mb-3">
+                                                    <div class="d-flex align-items-start">
+                                                        <i class="fas fa-users text-info me-3" style="font-size: 1.5rem; margin-top: 4px;"></i>
+                                                        <div>
+                                                            <h5 class="fw-bold mb-1" style="color: #3b82f6;">Thousands of Users</h5>
+                                                            <p class="small text-muted mb-0">Supporting concurrent access for thousands of users</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="border-start border-4 border-warning ps-3 mb-4" style="background-color: #f8f9fa; padding: 1rem; border-radius: 8px;">
+                                                <p class="mb-2 fst-italic">"AWS's rich infrastructure services and development deployment technical support enable our team to support global services with a more streamlined scale, and help us build a truly 'one-person company' Bika.ai."</p>
+                                                <p class="small mb-0 fw-semibold">— Kelly, CEO & Co-Founder, AI Organizer Company</p>
+                                            </div>
+
+                                            <div class="d-flex gap-2 flex-wrap mb-3">
+                                                <span class="badge bg-light text-dark border">Amazon Bedrock AgentCore Browser Tool</span>
+                                                <span class="badge bg-light text-dark border">Amazon Lambda</span>
+                                                <span class="badge bg-light text-dark border">Amazon S3</span>
+                                                <span class="badge bg-light text-dark border">Amazon DynamoDB</span>
+                                                <span class="badge bg-light text-dark border">Amazon RDS</span>
+                                                <span class="badge bg-light text-dark border">Amazon EC2</span>
+                                            </div>
+
+                                            <div class="mt-3">
+                                                <a href="https://mp.weixin.qq.com/s/Cr8nYvMk74hPJ4WsyjLVvA" target="_blank" class="btn btn-outline-warning">
+                                                    Read Full Case Study <i class="fas fa-external-link-alt ms-2"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6 mb-4">
-                        <div class="card h-100">
-                            <div class="card-header bg-light">
-                                <h5 class="mb-0">Tool Interaction</h5>
-                            </div>
-                            <div class="card-body">
-                                <ul>
-                                    <li>Web browsing with full DOM manipulation</li>
-                                    <li>File system operations for data processing</li>
-                                    <li>Application control for complex workflows</li>
-                                    <li>API integration for external service access</li>
-                                </ul>
-                            </div>
-                        </div>
                     </div>
+
+                    <!-- Carousel Controls - Positioned relative to outer wrapper -->
+                    <button class="position-absolute" type="button" data-bs-target="#caseStudiesCarousel" data-bs-slide="prev"
+                            style="width: 50px; height: 50px; top: 325px; left: -60px; background-color: rgba(0,0,0,0.5); border-radius: 50%; opacity: 0.8; border: none; z-index: 10;">
+                        <span class="carousel-control-prev-icon" aria-hidden="true" style="filter: invert(1); width: 20px; height: 20px;"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="position-absolute" type="button" data-bs-target="#caseStudiesCarousel" data-bs-slide="next"
+                            style="width: 50px; height: 50px; top: 325px; right: -60px; background-color: rgba(0,0,0,0.5); border-radius: 50%; opacity: 0.8; border: none; z-index: 10;">
+                        <span class="carousel-control-next-icon" aria-hidden="true" style="filter: invert(1); width: 20px; height: 20px;"></span>
+                        <span class="visually-hidden">Next</span>
+                    </button>
                 </div>
             </div>
         </div>
-        
-        <!-- Technical Details -->
+
+        <!-- Benefits Section -->
         <div class="row mb-5">
-            <div class="col-12 text-center mb-4">
-                <h3>Technical Details</h3>
+            <div class="col-12 text-center mb-5 scroll-fade-in">
+                <h2 class="display-5 fw-bold mb-3">Core Benefits</h2>
+                <p class="lead text-muted">Choose Agentcore for more efficient development, simpler deployment, and easier operations</p>
             </div>
-            
+
             <div class="col-md-10 offset-md-1">
-                <div class="card">
-                    <div class="card-body">
-                        <h5>Core Technologies</h5>
-                        <ul>
-                            <li><strong>E2B Sandbox:</strong> Secure, isolated environments for running agent tasks</li>
-                            <li><strong>AWS Lambda:</strong> Serverless compute for handling API requests and lightweight processing</li>
-                            <li><strong>AWS Fargate:</strong> Container orchestration for more complex, resource-intensive workloads</li>
-                            <li><strong>Claude 3.7/4 Sonnet:</strong> Advanced AI model for intelligent agent capabilities</li>
-                        </ul>
-                        
-                        <h5 class="mt-4">Key Features</h5>
-                        <ul>
-                            <li>Isolated execution environments for security</li>
-                            <li>Auto-scaling based on demand</li>
-                            <li>Real-time desktop streaming</li>
-                            <li>Comprehensive logging and monitoring</li>
-                            <li>Multi-scenario support with unified infrastructure</li>
-                            <li><strong>Agent-friendly APIs and interfaces</strong></li>
-                            <li><strong>Stateful agent execution across sessions</strong></li>
-                            <li><strong>Tool-use capabilities for autonomous agents</strong></li>
-                        </ul>
+                <div class="benefit-item bg-white rounded p-4 mb-3 shadow-sm scroll-fade-in">
+                    <div class="d-flex align-items-start">
+                        <div class="benefit-icon-wrapper me-3" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.2));">
+                            <i class="fas fa-clock" style="color: #3b82f6; font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-2">Rapid Development & Deployment</h5>
+                            <p class="text-muted mb-0">From zero to production in minutes with pre-built templates and automated toolchain that dramatically boosts development efficiency</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benefit-item bg-white rounded p-4 mb-3 shadow-sm scroll-fade-in">
+                    <div class="d-flex align-items-start">
+                        <div class="benefit-icon-wrapper me-3" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.2));">
+                            <i class="fas fa-expand-arrows-alt" style="color: #8b5cf6; font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-2">Elastic Scaling</h5>
+                            <p class="text-muted mb-0">Automatically adjust resources based on traffic - handle everything from a few calls per day to thousands of requests per second</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benefit-item bg-white rounded p-4 mb-3 shadow-sm scroll-fade-in">
+                    <div class="d-flex align-items-start">
+                        <div class="benefit-icon-wrapper me-3" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.2));">
+                            <i class="fas fa-dollar-sign" style="color: #10b981; font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-2">Pay-As-You-Go Pricing</h5>
+                            <p class="text-muted mb-0">Only pay for resources you actually use with no upfront investment, significantly reducing startup and operational costs</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benefit-item bg-white rounded p-4 mb-3 shadow-sm scroll-fade-in">
+                    <div class="d-flex align-items-start">
+                        <div class="benefit-icon-wrapper me-3" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.2));">
+                            <i class="fas fa-puzzle-piece" style="color: #f59e0b; font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-2">Seamless AWS Integration</h5>
+                            <p class="text-muted mb-0">Deep integration with AWS services - easily connect to S3, Lambda, DynamoDB, and hundreds of other services</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benefit-item bg-white rounded p-4 mb-3 shadow-sm scroll-fade-in">
+                    <div class="d-flex align-items-start">
+                        <div class="benefit-icon-wrapper me-3" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.2));">
+                            <i class="fas fa-chart-line" style="color: #ef4444; font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-2">Comprehensive Monitoring</h5>
+                            <p class="text-muted mb-0">Real-time monitoring of agent performance, costs, and health with intelligent alerts to quickly identify and resolve issues</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benefit-item bg-white rounded p-4 mb-3 shadow-sm scroll-fade-in">
+                    <div class="d-flex align-items-start">
+                        <div class="benefit-icon-wrapper me-3" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(79, 70, 229, 0.2));">
+                            <i class="fas fa-users" style="color: #6366f1; font-size: 1.5rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="fw-bold mb-2">Active Community Support</h5>
+                            <p class="text-muted mb-0">Join a global developer community to access best practices, code examples, and expert support</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -395,7 +780,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/script.js"></script>
-    
+
     <!-- Image Modal -->
     <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
@@ -413,5 +798,167 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // Scroll fade-in animation observer
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry, index) => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => {
+                        entry.target.classList.add('visible');
+                    }, index * 100);
+                }
+            });
+        }, observerOptions);
+
+        // Observe all elements with scroll-fade-in class
+        document.addEventListener('DOMContentLoaded', () => {
+            const fadeElements = document.querySelectorAll('.scroll-fade-in');
+            fadeElements.forEach(element => {
+                observer.observe(element);
+            });
+
+            // Initialize counters
+            initializeCounters();
+        });
+
+        // Animated counter for statistics
+        function animateCounter(element, target, suffix = '', duration = 2000) {
+            const start = 0;
+            const increment = target / (duration / 16);
+            let current = start;
+
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+
+                let displayValue = Math.floor(current);
+                if (suffix === 'K+') {
+                    displayValue = (displayValue / 1000).toFixed(1) + 'K+';
+                } else if (suffix === 'M+') {
+                    displayValue = (displayValue / 1000000).toFixed(1) + 'M+';
+                } else if (suffix === '%') {
+                    displayValue = (current).toFixed(1) + '%';
+                }
+
+                element.textContent = displayValue;
+            }, 16);
+        }
+
+        // Initialize counters when hero section is visible
+        function initializeCounters() {
+            const heroSection = document.querySelector('.hero-section');
+            let countersAnimated = false;
+
+            const heroObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !countersAnimated) {
+                        countersAnimated = true;
+
+                        const devCounter = document.getElementById('stat-developers');
+                        const callsCounter = document.getElementById('stat-calls');
+                        const uptimeCounter = document.getElementById('stat-uptime');
+
+                        if (devCounter) animateCounter(devCounter, 10000, 'K+', 2000);
+                        if (callsCounter) animateCounter(callsCounter, 50000000, 'M+', 2000);
+                        if (uptimeCounter) animateCounter(uptimeCounter, 99.9, '%', 2000);
+                    }
+                });
+            }, { threshold: 0.3 });
+
+            if (heroSection) {
+                heroObserver.observe(heroSection);
+            }
+        }
+
+        // Feature card interaction enhancement
+        const featureCards = document.querySelectorAll('.feature-card');
+        featureCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+            });
+
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+
+        // Button click effects with ripple
+        const buttons = document.querySelectorAll('button, .cta-button, .cta-button-outline');
+        buttons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                const ripple = document.createElement('span');
+                const rect = this.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = e.clientX - rect.left - size / 2;
+                const y = e.clientY - rect.top - size / 2;
+
+                ripple.style.cssText = `
+                    position: absolute;
+                    width: ${size}px;
+                    height: ${size}px;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.5);
+                    left: ${x}px;
+                    top: ${y}px;
+                    pointer-events: none;
+                    animation: ripple 0.6s ease-out;
+                `;
+
+                this.style.position = 'relative';
+                this.style.overflow = 'hidden';
+                this.appendChild(ripple);
+
+                setTimeout(() => ripple.remove(), 600);
+            });
+        });
+
+        // Benefit items hover effect
+        const benefitItems = document.querySelectorAll('.benefit-item');
+        benefitItems.forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                const icon = this.querySelector('i');
+                if (icon) {
+                    icon.style.transform = 'scale(1.2) rotate(10deg)';
+                    icon.style.transition = 'transform 0.3s ease';
+                }
+            });
+
+            item.addEventListener('mouseleave', function() {
+                const icon = this.querySelector('i');
+                if (icon) {
+                    icon.style.transform = 'scale(1) rotate(0deg)';
+                }
+            });
+        });
+
+        // Enhanced list group item hover
+        const listGroupItems = document.querySelectorAll('.list-group-item');
+        listGroupItems.forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.borderColor = '#667eea';
+                this.style.transform = 'translateX(5px)';
+                this.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.2)';
+            });
+
+            item.addEventListener('mouseleave', function() {
+                this.style.borderColor = '#e9ecef';
+                this.style.transform = 'translateX(0)';
+                this.style.boxShadow = 'none';
+            });
+        });
+
+        console.log('AWS Agentcore Landing Page - Initialized successfully');
+        console.log('Features: Runtime, Memory, Gateway, Tools');
+        console.log('All animations and interactions loaded');
+    </script>
 </body>
 </html>

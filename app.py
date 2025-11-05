@@ -108,7 +108,7 @@ logging.basicConfig(level=logging.INFO,
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Sandbox Desktop WebUI")
+app = FastAPI(title="AgentCore on AWS Demo UI")
 
 # Mount static files directory
 os.makedirs("static", exist_ok=True)
@@ -382,67 +382,92 @@ async def logout(response: Response):
 async def get_index(request: Request, user: dict = Depends(get_current_user)):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    return templates.TemplateResponse("index.html", {"request": request, "user": user, "active_page": "home"})
 
-@app.get("/browser-use", response_class=HTMLResponse)
-async def get_browser_use(request: Request, user: dict = Depends(get_current_user)):
-    if not user:
-        return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("browser-use.html", {"request": request, "user": user, "stream_url": stream_url})
+# Removed - Old E2B Desktop Browser Use
+# @app.get("/browser-use", response_class=HTMLResponse)
+# async def get_browser_use(request: Request, user: dict = Depends(get_current_user)):
+#     if not user:
+#         return RedirectResponse(url="/login", status_code=303)
+#     return templates.TemplateResponse("browser-use.html", {"request": request, "user": user, "stream_url": stream_url, "active_page": "browser-use"})
 
 @app.get("/browser-use-agentcore", response_class=HTMLResponse)
 async def get_browser_use_agentcore(request: Request, user: dict = Depends(get_current_user)):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("browser-use-agentcore.html", {"request": request, "user": user})
+    return templates.TemplateResponse("browser-use-agentcore.html", {"request": request, "user": user, "active_page": "browser-use"})
 
-@app.get("/computer-use", response_class=HTMLResponse)
-async def get_computer_use(request: Request, user: dict = Depends(get_current_user)):
-    if not user:
-        return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("computer-use.html", {"request": request, "user": user})
+# Removed - Computer Use feature
+# @app.get("/computer-use", response_class=HTMLResponse)
+# async def get_computer_use(request: Request, user: dict = Depends(get_current_user)):
+#     if not user:
+#         return RedirectResponse(url="/login", status_code=303)
+#     return templates.TemplateResponse("computer-use.html", {"request": request, "user": user})
 
-@app.get("/code-interpreter", response_class=HTMLResponse)
-async def get_code_interpreter(request: Request, user: dict = Depends(get_current_user)):
-    if not user:
-        return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("code-interpreter.html", {"request": request, "user": user})
+# Removed - Old Lambda Code Interpreter
+# @app.get("/code-interpreter", response_class=HTMLResponse)
+# async def get_code_interpreter(request: Request, user: dict = Depends(get_current_user)):
+#     if not user:
+#         return RedirectResponse(url="/login", status_code=303)
+#     return templates.TemplateResponse("code-interpreter.html", {"request": request, "user": user, "active_page": "code-interpreter"})
 
-@app.get("/code-interpreter-e2b", response_class=HTMLResponse)
-async def get_code_interpreter_e2b(request: Request, user: dict = Depends(get_current_user)):
-    if not user:
-        return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("code-interpreter-e2b.html", {"request": request, "user": user})
+# Removed - Old E2B Code Interpreter
+# @app.get("/code-interpreter-e2b", response_class=HTMLResponse)
+# async def get_code_interpreter_e2b(request: Request, user: dict = Depends(get_current_user)):
+#     if not user:
+#         return RedirectResponse(url="/login", status_code=303)
+#     return templates.TemplateResponse("code-interpreter-e2b.html", {"request": request, "user": user, "active_page": "code-interpreter"})
 
 @app.get("/code-interpreter-agentcore", response_class=HTMLResponse)
 async def get_code_interpreter_agentcore(request: Request, user: dict = Depends(get_current_user)):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("code-interpreter-agentcore.html", {"request": request, "user": user})
+    return templates.TemplateResponse("code-interpreter-agentcore.html", {"request": request, "user": user, "active_page": "code-interpreter"})
 
 @app.get("/sandbox-lifecycle", response_class=HTMLResponse)
 async def get_sandbox_lifecycle(request: Request, user: dict = Depends(get_current_user)):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("sandbox-lifecycle.html", {"request": request, "user": user})
+    return templates.TemplateResponse("sandbox-lifecycle.html", {"request": request, "user": user, "active_page": "sandbox-lifecycle"})
 
-@app.get("/code-interpreter-ec2", response_class=HTMLResponse)
-async def get_code_interpreter_ec2(request: Request, user: dict = Depends(get_current_user)):
+@app.get("/agentcore-runtime", response_class=HTMLResponse)
+async def get_agentcore_runtime(request: Request, user: dict = Depends(get_current_user)):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("code-interpreter-ec2.html", {"request": request, "user": user})
+    return templates.TemplateResponse("agentcore-runtime.html", {"request": request, "user": user, "active_page": "agentcore-runtime"})
 
-@app.get("/ai-search", response_class=HTMLResponse)
-async def get_ai_search(request: Request, user: dict = Depends(get_current_user)):
+@app.get("/agentcore-memory", response_class=HTMLResponse)
+async def get_agentcore_memory(request: Request, user: dict = Depends(get_current_user)):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("ai-search.html", {"request": request, "user": user})
+    return templates.TemplateResponse("agentcore-memory.html", {"request": request, "user": user, "active_page": "agentcore-memory"})
 
-@app.get("/ai-ppt", response_class=HTMLResponse)
-async def get_ai_ppt(request: Request, user: dict = Depends(get_current_user)):
+@app.get("/agentcore-gateway", response_class=HTMLResponse)
+async def get_agentcore_gateway(request: Request, user: dict = Depends(get_current_user)):
     if not user:
         return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("ai-ppt.html", {"request": request, "user": user})
+    return templates.TemplateResponse("agentcore-gateway.html", {"request": request, "user": user, "active_page": "agentcore-gateway"})
+
+# Removed - Old EC2 Code Interpreter
+# @app.get("/code-interpreter-ec2", response_class=HTMLResponse)
+# async def get_code_interpreter_ec2(request: Request, user: dict = Depends(get_current_user)):
+#     if not user:
+#         return RedirectResponse(url="/login", status_code=303)
+#     return templates.TemplateResponse("code-interpreter-ec2.html", {"request": request, "user": user, "active_page": "code-interpreter"})
+
+# Removed - AI Search feature
+# @app.get("/ai-search", response_class=HTMLResponse)
+# async def get_ai_search(request: Request, user: dict = Depends(get_current_user)):
+#     if not user:
+#         return RedirectResponse(url="/login", status_code=303)
+#     return templates.TemplateResponse("ai-search.html", {"request": request, "user": user})
+
+# Removed - AI PPT feature
+# @app.get("/ai-ppt", response_class=HTMLResponse)
+# async def get_ai_ppt(request: Request, user: dict = Depends(get_current_user)):
+#     if not user:
+#         return RedirectResponse(url="/login", status_code=303)
+#     return templates.TemplateResponse("ai-ppt.html", {"request": request, "user": user})
 
 # WebSocket endpoint
 @app.websocket("/ws")
@@ -837,8 +862,8 @@ if __name__ == "__main__":
     init_agentcore_code_interpreter_vars(logger)
 
     # Log startup message
-    logger.info("Starting Sandbox Desktop WebUI")
+    logger.info("Starting AgentCore on AWS Demo UI")
     logger.info("All logs will be streamed to the WebUI")
     
     # Start the FastAPI application
-    uvicorn.run("app:app", host="0.0.0.0", port=8080, log_level="info")
+    uvicorn.run("app:app", host="0.0.0.0", port=8090, log_level="info")
