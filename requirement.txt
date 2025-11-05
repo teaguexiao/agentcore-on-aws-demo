@@ -11,6 +11,3 @@ gradio>=4.0.0
 #aiohttp>=3.9.0
 aiohttp
 mcp-streamablehttp-client
-e2b==1.2.0b6
-e2b_desktop==1.7.1b1
-e2b-code-interpreter==1.2.0b5
