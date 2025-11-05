@@ -229,14 +229,6 @@ print("Plot saved successfully!")
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
-
-- **Amazon Web Services** for Bedrock and cloud infrastructure
-- **Anthropic** for Claude AI models
-- **FastAPI** community for the amazing web framework
-- **LangChain** team for the LLM framework
-- All contributors and users of this project
-
 ## 📞 Support
 
 For questions, issues, or feedback:
@@ -249,6 +241,9 @@ For questions, issues, or feedback:
 
 Future enhancements planned:
 
+- [ ] AgentCore Memory
+- [ ] AgentCore Gateway
+- [ ] AgentCore Runtime
 - [ ] DeepResearch functionality
 
 ---
