@@ -12,15 +12,6 @@ A comprehensive web application demonstrating how to leverage multiple sandbox e
 - **🌐 Real-time Monitoring**: WebSocket-based live updates and logging
 - **🖥️ Multiple Sandbox Types**: Support for AWS Lambda and EC2 environments
 
-## 📋 Table of Contents
-
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [License](#license)
-
 ## ✨ Features
 
 ### Frontend Interface
@@ -39,9 +30,8 @@ The web application provides an intuitive tabbed interface for accessing differe
 ### Required Accounts & Services
 
 1. **AWS Account** with access to:
-   - Amazon Bedrock (Claude 3.7/4 Sonnet models)
+   - Amazon Bedrock (Claude 4/4.5 Sonnet models)
    - IAM for role management
-   - Optional: Lambda, EC2 for additional sandbox types
 
 2. **Python 3.11+** installed on your system
 
@@ -105,7 +95,6 @@ Add the following trust policy to your IAM role (replace placeholders with your 
 **Supported Regions:**
 - `us-west-2` (Oregon) - Recommended
 - `us-east-1` (N. Virginia)
-- Check AWS documentation for latest region availability
 
 ## 🚀 Installation
 
@@ -136,14 +125,6 @@ venv\Scripts\activate
 pip install -r requirement.txt
 ```
 
-**Key Dependencies:**
-- `fastapi` - Web framework
-- `uvicorn` - ASGI server
-- `boto3` - AWS SDK
-- `langchain-aws` - LangChain AWS integrations
-- `browser-use` - Browser automation library
-- `websockets` - WebSocket support
-
 ## ⚙️ Configuration
 
 ### Environment Variables
@@ -165,16 +146,6 @@ TIMEOUT=1200
 # Optional: Session Configuration
 SESSION_TIMEOUT_SECONDS=1200
 ```
-
-### Configuration Details
-
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `AWS_ACCESS_KEY_ID` | AWS access key for your IAM user | - | Yes |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret key for your IAM user | - | Yes |
-| `AWS_DEFAULT_REGION` | AWS region for Bedrock | `us-west-2` | No |
-| `MODEL_ID` | Bedrock model identifier | Claude 3.7 Sonnet | No |
-| `TIMEOUT` | Sandbox timeout in seconds | `1200` | No |
 
 ## 🎯 Usage
 
@@ -278,16 +249,7 @@ For questions, issues, or feedback:
 
 Future enhancements planned:
 
-- [ ] AI Search functionality
-- [ ] AI-powered presentation generation
-- [ ] Multi-user authentication and authorization
-- [ ] Session persistence and recovery
-- [ ] Advanced monitoring and analytics
-- [ ] Docker containerization
-- [ ] Kubernetes deployment support
-- [ ] Additional sandbox providers
-- [ ] Enhanced error handling and recovery
-- [ ] Performance optimizations
+- [ ] DeepResearch functionality
 
 ---
 
