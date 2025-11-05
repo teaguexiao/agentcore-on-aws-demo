@@ -290,12 +290,13 @@ async def websocket_endpoint(websocket: WebSocket, session_token: Optional[str] 
                         })
                         
                         # Also create sessions in both session managers if they don't exist
-                        from sandbox_computer_use import session_manager, ComputerUseSession
-                        if not session_manager.get_session(session_id):
-                            session = ComputerUseSession(session_id)
-                            session_manager.sessions[session_id] = session
-                            logger.info(f"Created computer use session: {session_id}")
-                        
+                        # COMMENTED OUT: sandbox_computer_use module is missing
+                        # from sandbox_computer_use import session_manager, ComputerUseSession
+                        # if not session_manager.get_session(session_id):
+                        #     session = ComputerUseSession(session_id)
+                        #     session_manager.sessions[session_id] = session
+                        #     logger.info(f"Created computer use session: {session_id}")
+
                         # Create browser-use session if it doesn't exist
                         if not browser_session_manager.get_session(session_id):
                             browser_session = BrowserUseSession(session_id)

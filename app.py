@@ -29,10 +29,11 @@ from sandbox_browser_use import (
 )
 
 # Import computer use functions
-from sandbox_computer_use import (
-    start_computer_desktop, run_computer_use_task, take_computer_screenshot,
-    stop_computer_task, kill_computer_desktop, init_computer_use_vars
-)
+# COMMENTED OUT: sandbox_computer_use.py module is missing
+# from sandbox_computer_use import (
+#     start_computer_desktop, run_computer_use_task, take_computer_screenshot,
+#     stop_computer_task, kill_computer_desktop, init_computer_use_vars
+# )
 
 # Import Agentcore browser tool functions
 from agentcore_browser_tool import (
@@ -506,55 +507,56 @@ async def run_workflow_endpoint(query: str = Form(...), session_id: str = Form(N
     return await run_workflow(query, session_id=session_id, background_tasks=background_tasks)
 
 # Computer Use API endpoints
-@app.post("/start-computer-desktop")
-async def start_computer_desktop_endpoint(session_id: str = Form(None)):
-    """Start computer use desktop"""
-    return await start_computer_desktop(session_id=session_id)
-
-@app.post("/run-computer-use-task") 
-async def run_computer_use_task_endpoint(query: str = Form(...), session_id: str = Form(None), background_tasks: BackgroundTasks = BackgroundTasks()):
-    """Run computer use task (starts desktop if needed)"""
-    try:
-        return await run_computer_use_task(query, session_id=session_id, background_tasks=background_tasks)
-    except Exception as e:
-        logger.error(f"Error in run_computer_use_task_endpoint: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
-
-@app.post("/run-computer-task")
-async def run_computer_task_endpoint(query: str = Form(...), session_id: str = Form(None), sandbox_id: str = Form(None), background_tasks: BackgroundTasks = BackgroundTasks()):
-    """Run computer task on existing desktop"""
-    try:
-        return await run_computer_use_task(query, session_id=session_id, sandbox_id=sandbox_id, background_tasks=background_tasks)
-    except Exception as e:
-        logger.error(f"Error in run_computer_task_endpoint: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
-
-@app.post("/take-computer-screenshot")
-async def take_computer_screenshot_endpoint(session_id: str = Form(None), sandbox_id: str = Form(None)):
-    """Take a screenshot of the computer desktop"""
-    try:
-        return await take_computer_screenshot(session_id=session_id, sandbox_id=sandbox_id)
-    except Exception as e:
-        logger.error(f"Error in take_computer_screenshot_endpoint: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
-
-@app.post("/stop-computer-task")
-async def stop_computer_task_endpoint(session_id: str = Form(None)):
-    """Stop the currently running computer task"""
-    try:
-        return await stop_computer_task(session_id=session_id)
-    except Exception as e:
-        logger.error(f"Error in stop_computer_task_endpoint: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
-
-@app.post("/kill-computer-desktop")
-async def kill_computer_desktop_endpoint(session_id: str = Form(None)):
-    """Kill the computer desktop instance"""
-    try:
-        return await kill_computer_desktop(session_id=session_id)
-    except Exception as e:
-        logger.error(f"Error in kill_computer_desktop_endpoint: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
+# COMMENTED OUT: sandbox_computer_use module is missing
+# @app.post("/start-computer-desktop")
+# async def start_computer_desktop_endpoint(session_id: str = Form(None)):
+#     """Start computer use desktop"""
+#     return await start_computer_desktop(session_id=session_id)
+#
+# @app.post("/run-computer-use-task")
+# async def run_computer_use_task_endpoint(query: str = Form(...), session_id: str = Form(None), background_tasks: BackgroundTasks = BackgroundTasks()):
+#     """Run computer use task (starts desktop if needed)"""
+#     try:
+#         return await run_computer_use_task(query, session_id=session_id, background_tasks=background_tasks)
+#     except Exception as e:
+#         logger.error(f"Error in run_computer_use_task_endpoint: {e}", exc_info=True)
+#         return {"status": "error", "message": str(e)}
+#
+# @app.post("/run-computer-task")
+# async def run_computer_task_endpoint(query: str = Form(...), session_id: str = Form(None), sandbox_id: str = Form(None), background_tasks: BackgroundTasks = BackgroundTasks()):
+#     """Run computer task on existing desktop"""
+#     try:
+#         return await run_computer_use_task(query, session_id=session_id, sandbox_id=sandbox_id, background_tasks=background_tasks)
+#     except Exception as e:
+#         logger.error(f"Error in run_computer_task_endpoint: {e}", exc_info=True)
+#         return {"status": "error", "message": str(e)}
+#
+# @app.post("/take-computer-screenshot")
+# async def take_computer_screenshot_endpoint(session_id: str = Form(None), sandbox_id: str = Form(None)):
+#     """Take a screenshot of the computer desktop"""
+#     try:
+#         return await take_computer_screenshot(session_id=session_id, sandbox_id=sandbox_id)
+#     except Exception as e:
+#         logger.error(f"Error in take_computer_screenshot_endpoint: {e}", exc_info=True)
+#         return {"status": "error", "message": str(e)}
+#
+# @app.post("/stop-computer-task")
+# async def stop_computer_task_endpoint(session_id: str = Form(None)):
+#     """Stop the currently running computer task"""
+#     try:
+#         return await stop_computer_task(session_id=session_id)
+#     except Exception as e:
+#         logger.error(f"Error in stop_computer_task_endpoint: {e}", exc_info=True)
+#         return {"status": "error", "message": str(e)}
+#
+# @app.post("/kill-computer-desktop")
+# async def kill_computer_desktop_endpoint(session_id: str = Form(None)):
+#     """Kill the computer desktop instance"""
+#     try:
+#         return await kill_computer_desktop(session_id=session_id)
+#     except Exception as e:
+#         logger.error(f"Error in kill_computer_desktop_endpoint: {e}", exc_info=True)
+#         return {"status": "error", "message": str(e)}
 
 # Agentcore BrowserTool API endpoints
 @app.post("/start-agentcore-browser")
@@ -590,24 +592,25 @@ async def stop_agentcore_browser_endpoint(session_id: str = Form(...)):
 async def get_sessions_status():
     """Get status of all active sessions (computer-use and browser-use)"""
     try:
-        from sandbox_computer_use import session_manager
+        # COMMENTED OUT: sandbox_computer_use module is missing
+        # from sandbox_computer_use import session_manager
         from sandbox_browser_use import browser_session_manager
-        
-        # Computer-use sessions
+
+        # Computer-use sessions - DISABLED (module missing)
         computer_sessions = []
-        for session_id, session in session_manager.sessions.items():
-            session_info = {
-                "session_id": session_id,
-                "type": "computer-use",
-                "created_at": session.created_at.isoformat(),
-                "last_activity": session.last_activity.isoformat(),
-                "has_desktop": session.desktop is not None,
-                "has_agent": session.agent is not None,
-                "task_running": session.current_task is not None and not session.current_task.done(),
-                "sandbox_id": getattr(session.desktop, 'sandbox_id', None) if session.desktop else None,
-                "connections": len(session.connections)
-            }
-            computer_sessions.append(session_info)
+        # for session_id, session in session_manager.sessions.items():
+        #     session_info = {
+        #         "session_id": session_id,
+        #         "type": "computer-use",
+        #         "created_at": session.created_at.isoformat(),
+        #         "last_activity": session.last_activity.isoformat(),
+        #         "has_desktop": session.desktop is not None,
+        #         "has_agent": session.agent is not None,
+        #         "task_running": session.current_task is not None and not session.current_task.done(),
+        #         "sandbox_id": getattr(session.desktop, 'sandbox_id', None) if session.desktop else None,
+        #         "connections": len(session.connections)
+        #     }
+        #     computer_sessions.append(session_info)
         
         # Browser-use sessions
         browser_sessions = []
@@ -851,9 +854,9 @@ async def destroy_sandbox():
 if __name__ == "__main__":
     # Initialize shared variables in browser_use.py
     init_shared_vars(manager, logger, ws_handler, stdout_capture, stderr_capture, sessions)
-    
-    # Initialize shared variables in computer_use.py
-    init_computer_use_vars(manager, logger, ws_handler, stdout_capture, stderr_capture, sessions)
+
+    # Initialize shared variables in computer_use.py - DISABLED (module missing)
+    # init_computer_use_vars(manager, logger, ws_handler, stdout_capture, stderr_capture, sessions)
 
     # Initialize shared variables in agentcore_browser_tool.py
     init_agentcore_vars(manager, logger)
