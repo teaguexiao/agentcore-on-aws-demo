@@ -18,15 +18,6 @@ from fastapi.middleware.wsgi import WSGIMiddleware
 from pydantic import BaseModel
 import time
 
-# Import functions from e2b-desktop.py
-from sandbox_desktop import open_desktop_stream, setup_environment, create_sts
-
-# Import functions from browser_use.py
-from sandbox_browser_use import (
-    websocket_endpoint, start_desktop, setup_env, setup_env_in_background,
-    run_task, run_task_in_background, kill_desktop, run_workflow,
-    init_shared_vars
-)
 
 # Import computer use functions
 # COMMENTED OUT: sandbox_computer_use.py module is missing
@@ -47,10 +38,6 @@ from agentcore_code_interpreter import (
     init_agentcore_code_interpreter_vars
 )
 
-# Import E2B code interpreter
-import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from e2b_code_interpreter import Sandbox
 
 # Load environment variables
 load_dotenv()
@@ -385,12 +372,6 @@ async def get_index(request: Request, user: dict = Depends(get_current_user)):
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse("index.html", {"request": request, "user": user, "active_page": "home"})
 
-# Removed - Old E2B Desktop Browser Use
-# @app.get("/browser-use", response_class=HTMLResponse)
-# async def get_browser_use(request: Request, user: dict = Depends(get_current_user)):
-#     if not user:
-#         return RedirectResponse(url="/login", status_code=303)
-#     return templates.TemplateResponse("browser-use.html", {"request": request, "user": user, "stream_url": stream_url, "active_page": "browser-use"})
 
 @app.get("/browser-use-agentcore", response_class=HTMLResponse)
 async def get_browser_use_agentcore(request: Request, user: dict = Depends(get_current_user)):
@@ -412,12 +393,6 @@ async def get_browser_use_agentcore(request: Request, user: dict = Depends(get_c
 #         return RedirectResponse(url="/login", status_code=303)
 #     return templates.TemplateResponse("code-interpreter.html", {"request": request, "user": user, "active_page": "code-interpreter"})
 
-# Removed - Old E2B Code Interpreter
-# @app.get("/code-interpreter-e2b", response_class=HTMLResponse)
-# async def get_code_interpreter_e2b(request: Request, user: dict = Depends(get_current_user)):
-#     if not user:
-#         return RedirectResponse(url="/login", status_code=303)
-#     return templates.TemplateResponse("code-interpreter-e2b.html", {"request": request, "user": user, "active_page": "code-interpreter"})
 
 @app.get("/code-interpreter-agentcore", response_class=HTMLResponse)
 async def get_code_interpreter_agentcore(request: Request, user: dict = Depends(get_current_user)):
@@ -425,11 +400,6 @@ async def get_code_interpreter_agentcore(request: Request, user: dict = Depends(
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse("code-interpreter-agentcore.html", {"request": request, "user": user, "active_page": "code-interpreter"})
 
-@app.get("/sandbox-lifecycle", response_class=HTMLResponse)
-async def get_sandbox_lifecycle(request: Request, user: dict = Depends(get_current_user)):
-    if not user:
-        return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("sandbox-lifecycle.html", {"request": request, "user": user, "active_page": "sandbox-lifecycle"})
 
 @app.get("/agentcore-runtime", response_class=HTMLResponse)
 async def get_agentcore_runtime(request: Request, user: dict = Depends(get_current_user)):
@@ -470,41 +440,6 @@ async def get_agentcore_gateway(request: Request, user: dict = Depends(get_curre
 #         return RedirectResponse(url="/login", status_code=303)
 #     return templates.TemplateResponse("ai-ppt.html", {"request": request, "user": user})
 
-# WebSocket endpoint
-@app.websocket("/ws")
-async def ws_endpoint(websocket: WebSocket, session_token: Optional[str] = Cookie(None)):
-    # Use the imported websocket_endpoint function
-    await websocket_endpoint(websocket, session_token)
-
-# Start desktop stream
-@app.post("/start-desktop")
-async def start_desktop_endpoint(session_id: str = Form(None)):
-    # Use the imported start_desktop function
-    return await start_desktop(session_id=session_id)
-
-# Setup environment
-@app.post("/setup-environment")
-async def setup_env_endpoint(session_id: str = Form(None), background_tasks: BackgroundTasks = None):
-    # Use the imported setup_env function
-    return await setup_env(session_id=session_id, background_tasks=background_tasks)
-
-# Run task
-@app.post("/run-task")
-async def run_task_endpoint(query: str = Form(...), session_id: str = Form(None), background_tasks: BackgroundTasks = None):
-    # Use the imported run_task function
-    return await run_task(query, session_id=session_id, background_tasks=background_tasks)
-
-# Kill desktop
-@app.post("/kill-desktop")
-async def kill_desktop_endpoint(session_id: str = Form(None)):
-    # Use the imported kill_desktop function
-    return await kill_desktop(session_id=session_id)
-
-# Run the entire workflow
-@app.post("/run-workflow")
-async def run_workflow_endpoint(query: str = Form(...), session_id: str = Form(None), background_tasks: BackgroundTasks = BackgroundTasks()):
-    # Use the imported run_workflow function
-    return await run_workflow(query, session_id=session_id, background_tasks=background_tasks)
 
 # Computer Use API endpoints
 # COMMENTED OUT: sandbox_computer_use module is missing
@@ -592,41 +527,11 @@ async def stop_agentcore_browser_endpoint(session_id: str = Form(...)):
 async def get_sessions_status():
     """Get status of all active sessions (computer-use and browser-use)"""
     try:
-        # COMMENTED OUT: sandbox_computer_use module is missing
-        # from sandbox_computer_use import session_manager
-        from sandbox_browser_use import browser_session_manager
-
         # Computer-use sessions - DISABLED (module missing)
         computer_sessions = []
-        # for session_id, session in session_manager.sessions.items():
-        #     session_info = {
-        #         "session_id": session_id,
-        #         "type": "computer-use",
-        #         "created_at": session.created_at.isoformat(),
-        #         "last_activity": session.last_activity.isoformat(),
-        #         "has_desktop": session.desktop is not None,
-        #         "has_agent": session.agent is not None,
-        #         "task_running": session.current_task is not None and not session.current_task.done(),
-        #         "sandbox_id": getattr(session.desktop, 'sandbox_id', None) if session.desktop else None,
-        #         "connections": len(session.connections)
-        #     }
-        #     computer_sessions.append(session_info)
-        
-        # Browser-use sessions
+
+        # Browser-use sessions - REMOVED (E2B dependency removed)
         browser_sessions = []
-        for session_id, session in browser_session_manager.sessions.items():
-            session_info = {
-                "session_id": session_id,
-                "type": "browser-use",
-                "created_at": session.created_at.isoformat(),
-                "last_activity": session.last_activity.isoformat(),
-                "has_desktop": session.desktop is not None,
-                "has_stream_url": session.stream_url is not None,
-                "command_running": session.current_command is not None,
-                "sandbox_id": getattr(session.desktop, 'sandbox_id', None) if session.desktop else None,
-                "connections": len(session.connections)
-            }
-            browser_sessions.append(session_info)
 
         # Agentcore browser sessions
         agentcore_sessions = []
@@ -666,64 +571,10 @@ async def get_sessions_status():
         logger.error(f"Error getting sessions status: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}
 
-# E2B Code Interpreter API endpoints
+# AWS Bedrock AgentCore Code Interpreter API endpoints
 class CodeRequest(BaseModel):
     code: str
 
-# Global sandbox instance
-e2b_sandbox = None
-
-@app.post("/api/e2b/execute")
-async def execute_code(code_request: CodeRequest):
-    """Execute code in the E2B sandbox and return the result"""
-    global e2b_sandbox
-    
-    try:
-        # Initialize sandbox if needed
-        if e2b_sandbox is None:
-            template_id = os.environ.get("CODE_INTERPRETER_TEMPLATE_ID", "nlhz8vlwyupq845jsdg9")
-            e2b_sandbox = Sandbox(template=template_id, timeout=3600)
-            logger.info(f"Created new E2B sandbox with ID: {e2b_sandbox.sandbox_id}")
-        time.sleep(1)
-        # Execute the code
-        logger.info(f"Executing code in E2B sandbox: {e2b_sandbox.sandbox_id}")
-        result = e2b_sandbox.run_code(code_request.code)
-        
-        return JSONResponse({
-            "success": True,
-            "output": str(result),
-            "sandbox_id": e2b_sandbox.sandbox_id
-        })
-    except Exception as e:
-        logger.error(f"Error executing code in E2B sandbox: {str(e)}")
-        return JSONResponse({
-            "success": False,
-            "error": str(e)
-        }, status_code=500)
-
-@app.post("/api/e2b/reset")
-async def reset_sandbox():
-    """Reset the E2B sandbox by creating a new instance"""
-    global e2b_sandbox
-    
-    try:
-        # Create a new sandbox instance
-        template_id = os.environ.get("CODE_INTERPRETER_TEMPLATE_ID", "nlhz8vlwyupq845jsdg9")
-        e2b_sandbox = Sandbox(template=template_id, timeout=3600)
-        logger.info(f"Reset E2B sandbox with new ID: {e2b_sandbox.sandbox_id}")
-        
-        return JSONResponse({
-            "success": True,
-            "sandbox_id": e2b_sandbox.sandbox_id
-        })
-    except Exception as e:
-        logger.error(f"Error resetting E2B sandbox: {str(e)}")
-        return JSONResponse({
-            "success": False,
-            "error": str(e)
-        }, status_code=500)
-
-# AWS Bedrock AgentCore Code Interpreter API endpoints
 @app.post("/api/agentcore/execute")
 async def execute_agentcore_code_endpoint(code_request: CodeRequest):
     """Execute code using AWS Bedrock AgentCore and return the result"""
@@ -757,103 +608,8 @@ async def reset_agentcore_session_endpoint():
             "error": result["error"]
         }, status_code=500)
 
-@app.post("/api/e2b/pause")
-async def pause_sandbox():
-    """Pause the E2B sandbox"""
-    global e2b_sandbox
-    
-    try:
-        if e2b_sandbox:
-            sandbox_id = e2b_sandbox.sandbox_id
-            
-            # Call the actual E2B pause method
-            e2b_sandbox.pause()
-            logger.info(f"Paused E2B sandbox with ID: {sandbox_id}")
-            
-            return JSONResponse({
-                "success": True,
-                "sandbox_id": sandbox_id,
-                "message": f"Sandbox {sandbox_id} paused successfully"
-            })
-        else:
-            return JSONResponse({
-                "success": False,
-                "error": "No active sandbox to pause"
-            }, status_code=400)
-    except Exception as e:
-        logger.error(f"Error pausing E2B sandbox: {str(e)}")
-        return JSONResponse({
-            "success": False,
-            "error": str(e)
-        }, status_code=500)
-
-@app.post("/api/e2b/resume")
-async def resume_sandbox():
-    """Resume the E2B sandbox"""
-    global e2b_sandbox
-    
-    try:
-        if e2b_sandbox:
-            sandbox_id = e2b_sandbox.sandbox_id
-            
-            # Call the actual E2B resume method with sandbox_id
-            e2b_sandbox.resume(sandbox_id)
-            logger.info(f"Resumed E2B sandbox with ID: {sandbox_id}")
-            
-            return JSONResponse({
-                "success": True,
-                "sandbox_id": sandbox_id,
-                "message": f"Sandbox {sandbox_id} resumed successfully"
-            })
-        else:
-            return JSONResponse({
-                "success": False,
-                "error": "No active sandbox to resume"
-            }, status_code=400)
-    except Exception as e:
-        logger.error(f"Error resuming E2B sandbox: {str(e)}")
-        return JSONResponse({
-            "success": False,
-            "error": str(e)
-        }, status_code=500)
-
-@app.post("/api/e2b/destroy")
-async def destroy_sandbox():
-    """Destroy the E2B sandbox"""
-    global e2b_sandbox
-    
-    try:
-        if e2b_sandbox:
-            # Get the sandbox ID before destroying it
-            sandbox_id = e2b_sandbox.sandbox_id
-            
-            # Destroy the sandbox
-            e2b_sandbox.kill()
-            logger.info(f"Destroyed E2B sandbox with ID: {sandbox_id}")
-            
-            # Set the sandbox to None to prevent further use
-            e2b_sandbox = None
-            
-            return JSONResponse({
-                "success": True,
-                "message": f"Sandbox {sandbox_id} destroyed successfully"
-            })
-        else:
-            return JSONResponse({
-                "success": False,
-                "error": "No active sandbox to destroy"
-            }, status_code=400)
-    except Exception as e:
-        logger.error(f"Error destroying E2B sandbox: {str(e)}")
-        return JSONResponse({
-            "success": False,
-            "error": str(e)
-        }, status_code=500)
-
-# Initialize shared variables in browser_use.py
+# Initialize shared variables
 if __name__ == "__main__":
-    # Initialize shared variables in browser_use.py
-    init_shared_vars(manager, logger, ws_handler, stdout_capture, stderr_capture, sessions)
 
     # Initialize shared variables in computer_use.py - DISABLED (module missing)
     # init_computer_use_vars(manager, logger, ws_handler, stdout_capture, stderr_capture, sessions)
