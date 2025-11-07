@@ -293,12 +293,9 @@ print("✓ Visualization saved successfully!")
 - Interactive demonstrations with immediate feedback
 
 **Setup Requirements:**
-```bash
-# Memory IDs will be created automatically on first use
-# Or set environment variables for existing memories:
-export STM_MEMORY_ID=your-stm-memory-id
-export LTM_MEMORY_ID=your-ltm-memory-id
-```
+- Memory resources can be created directly in the web UI
+- Navigate to "Memory Resource Management" section to create STM/LTM memories
+- No additional setup required
 
 ### Session Management
 
@@ -329,7 +326,6 @@ agentcore-on-aws-demo/
 │   └── images/                    # Images and diagrams
 │       └── memory/                # Memory architecture diagrams
 ├── interactive_tools/             # Browser viewer and utilities
-├── setup_memory.py                # Memory setup utility script
 └── docs/                          # Documentation files
     ├── MEMORY_DEMO_README.md      # Memory demo guide
     ├── MEMORY_ARCHITECTURE.md     # Memory architecture details
