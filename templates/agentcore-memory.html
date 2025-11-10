@@ -16,50 +16,51 @@
             color: #0d6efd;
             font-weight: 600;
         }
-        .coming-soon-badge {
-            font-size: 0.65rem;
-            margin-left: 5px;
-            padding: 0.25em 0.5em;
-            vertical-align: middle;
-            font-weight: normal;
-        }
-
-        /* GitHub link styles */
-        .github-link {
-            color: #333;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 6px;
+        .code-snippet {
             background-color: #f8f9fa;
             border: 1px solid #dee2e6;
-            transition: all 0.2s ease-in-out;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin: 15px 0;
+            overflow-x: auto;
         }
-
-        .github-link:hover {
-            color: #0d6efd;
-            background-color: #e9ecef;
-            border-color: #0d6efd;
-            text-decoration: none;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        .result-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
         }
-
-        .github-icon {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
+        .result-box.success {
+            background-color: #d1e7dd;
+            border-color: #badbcc;
         }
-
-        .feature-card {
-            transition: transform 0.2s;
+        .result-box.error {
+            background-color: #f8d7da;
+            border-color: #f5c2c7;
         }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
+        .demo-section {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .step-header {
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .loading {
+            display: none;
+        }
+        .loading.active {
+            display: inline-block;
         }
     </style>
 </head>
@@ -71,153 +72,802 @@
             <div class="col-12 mt-4">
                 <div class="container">
                     <h2 class="text-center mb-4">
-                        <i class="fas fa-brain me-2"></i>AgentCore Memory
+                        <i class="fas fa-brain me-2"></i>AgentCore Memory 交互式演示
                     </h2>
-                    
+
                     <div class="row mb-4">
                         <div class="col-12">
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle me-2"></i>
-                                <strong>AgentCore Memory</strong> provides persistent memory and context management for AI agents using AWS services.
+                                <strong>AgentCore Memory</strong> 提供两大核心能力：
+                                <strong>Short-term Memory (STM)</strong> - 会话内的短期记忆，以及
+                                <strong>Long-term Memory (LTM)</strong> - 跨会话的长期记忆。
                             </div>
                         </div>
                     </div>
 
-                    <div class="row g-4">
-                        <!-- Memory Features -->
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-save text-primary me-2"></i>Persistent Storage
-                                    </h5>
-                                    <p class="card-text">
-                                        Store agent memory and context in DynamoDB and S3 for long-term persistence.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-search text-success me-2"></i>Vector Search
-                                    </h5>
-                                    <p class="card-text">
-                                        Semantic search capabilities using Amazon Bedrock Knowledge Bases and OpenSearch.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-history text-warning me-2"></i>Session History
-                                    </h5>
-                                    <p class="card-text">
-                                        Track and retrieve conversation history and agent interactions across sessions.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-layer-group text-info me-2"></i>Context Windows
-                                    </h5>
-                                    <p class="card-text">
-                                        Intelligent context window management to optimize token usage and relevance.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-compress-arrows-alt text-secondary me-2"></i>Memory Compression
-                                    </h5>
-                                    <p class="card-text">
-                                        Automatic summarization and compression of long-term memory to reduce storage costs.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-share-alt text-danger me-2"></i>Shared Memory
-                                    </h5>
-                                    <p class="card-text">
-                                        Enable memory sharing across multiple agents for collaborative workflows.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mt-5">
+                    <!-- Architecture Overview -->
+                    <div class="row mb-4">
                         <div class="col-12">
-                            <div class="card">
-                                <div class="card-header bg-primary text-white">
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-database me-2"></i>Memory Architecture
-                                    </h5>
+                            <div class="demo-section">
+                                <h5 class="step-header">
+                                    <i class="fas fa-sitemap me-2"></i>架构概览
+                                </h5>
+                                <div class="text-center">
+                                    <img src="/static/images/memory/agent-memory-arch.png"
+                                         class="img-fluid rounded shadow-sm"
+                                         alt="AgentCore Memory Architecture"
+                                         style="max-width: 100%; height: auto; border: 1px solid #dee2e6;">
                                 </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <h6><i class="fas fa-bolt me-2"></i>Short-term Memory</h6>
-                                            <ul>
-                                                <li>In-memory cache using ElastiCache Redis</li>
-                                                <li>Fast access for recent interactions</li>
-                                                <li>Automatic expiration and cleanup</li>
-                                            </ul>
+                                <p class="text-muted mt-3 text-center">
+                                    <small>AgentCore Memory 整体架构：展示 STM 和 LTM 如何协同工作</small>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Memory Management Section -->
+                    <div class="demo-section">
+                        <h4 class="step-header">
+                            <i class="fas fa-cog me-2"></i>步骤 1: Memory 资源管理
+                        </h4>
+
+                        <!-- Create Memory -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h6><i class="fas fa-plus-circle me-2"></i>创建新的 Memory 资源</h6>
+                                <p class="text-muted small">
+                                    点击下方按钮创建 STM 或 LTM Memory 资源。创建后自动填充到下方的输入框中。
+                                </p>
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-success" onclick="createSTMMemory()">
+                                        <i class="fas fa-clock me-2"></i>创建 STM Memory
+                                        <span class="spinner-border spinner-border-sm ms-2 loading" id="createSTMLoading"></span>
+                                    </button>
+                                    <button class="btn btn-info" onclick="createLTMMemory()">
+                                        <i class="fas fa-database me-2"></i>创建 LTM Memory
+                                        <span class="spinner-border spinner-border-sm ms-2 loading" id="createLTMLoading"></span>
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="listMemories()">
+                                        <i class="fas fa-list me-2"></i>列出现有 Memory
+                                        <span class="spinner-border spinner-border-sm ms-2 loading" id="listMemoriesLoading"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Code Display Area -->
+                        <div class="row mb-4" id="codeDisplayArea">
+                            <div class="col-12">
+                                <h6><i class="fas fa-code me-2"></i>创建代码示例</h6>
+                                <div class="code-snippet" id="codeDisplay" style="max-height: 400px; overflow-y: auto;">
+                                    <pre id="codeContent" style="margin: 0;">import time
+from datetime import datetime
+from bedrock_agentcore.memory import MemoryClient
+
+# ========== 创建 STM (Short-Term Memory) ==========
+print("🚀 开始创建 Short-Term Memory (STM)")
+client = MemoryClient(region_name="us-west-2")
+
+stm = client.create_memory_and_wait(
+    name="AgentCore_STM_Demo_xxx",
+    strategies=[],  # 空列表 = 不配置提取策略
+    description="Short-term memory demo - 仅存储原始对话",
+    event_expiry_days=7
+)
+print(f"✅ STM 创建成功: {stm['id']}")
+
+# ========== 创建 LTM (Long-Term Memory) ==========
+print("\n🚀 开始创建 Long-Term Memory (LTM)")
+
+ltm = client.create_memory_and_wait(
+    name="AgentCore_LTM_Demo_xxx",
+    strategies=[
+        {
+            "semanticMemoryStrategy": {
+                "name": "semantic_facts",
+                "description": "提取用户提到的重要事实和信息",
+                "namespaces": ["/strategies/{memoryStrategyId}/actors/{actorId}"]
+            }
+        },
+        {
+            "userPreferenceMemoryStrategy": {
+                "name": "user_preferences",
+                "description": "提取用户的偏好、喜好和习惯",
+                "namespaces": ["/strategies/{memoryStrategyId}/actors/{actorId}"]
+            }
+        }
+    ],
+    description="Long-term memory demo - 智能提取和跨会话记忆",
+    event_expiry_days=30
+)
+print(f"✅ LTM 创建成功: {ltm['id']}")</pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Log Output Area -->
+                        <div class="row mb-4" id="logOutputArea" style="display: none;">
+                            <div class="col-12">
+                                <h6><i class="fas fa-terminal me-2"></i>创建日志</h6>
+                                <div class="code-snippet" id="logDisplay" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4; font-family: 'Courier New', monospace;">
+                                    <pre id="logContent" style="margin: 0; color: #d4d4d4;"></pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Result Area -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div id="createMemoryResult"></div>
+                            </div>
+                        </div>
+
+                        <!-- List Memories -->
+                        <div class="row mb-4" id="memoryListSection" style="display: none;">
+                            <div class="col-12">
+                                <h6><i class="fas fa-list me-2"></i>现有 Memory 资源</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Memory ID</th>
+                                                <th>名称</th>
+                                                <th>状态</th>
+                                                <th>类型</th>
+                                                <th>创建时间</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="memoryListBody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Initialize Memory -->
+                        <div class="row">
+                            <div class="col-12">
+                                <h6><i class="fas fa-check-circle me-2"></i>初始化 Memory Managers</h6>
+                                <p class="text-muted small">
+                                    输入或选择 Memory ID，然后点击初始化按钮开始演示。
+                                </p>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="stmMemoryId" class="form-label">STM Memory ID</label>
+                                <input type="text" class="form-control" id="stmMemoryId" placeholder="mem-xxxxx...">
+                            </div>
+                            <div class="col-md-5">
+                                <label for="ltmMemoryId" class="form-label">LTM Memory ID</label>
+                                <input type="text" class="form-control" id="ltmMemoryId" placeholder="mem-xxxxx...">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-primary w-100" onclick="initializeMemory()">
+                                    <i class="fas fa-play me-2"></i>初始化
+                                    <span class="spinner-border spinner-border-sm ms-2 loading" id="initLoading"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Initialize Code Display -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <h6><i class="fas fa-code me-2"></i>初始化代码</h6>
+                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto;">
+                                    <pre style="margin: 0;">from bedrock_agentcore.memory.session import MemorySessionManager
+
+# 初始化 STM Manager
+print("🔄 初始化 STM Manager...")
+stm_manager = MemorySessionManager(
+    memory_id="your-stm-memory-id",
+    region_name="us-west-2"
+)
+print("✅ STM Manager 初始化成功")
+
+# 初始化 LTM Manager
+print("🔄 初始化 LTM Manager...")
+ltm_manager = MemorySessionManager(
+    memory_id="your-ltm-memory-id",
+    region_name="us-west-2"
+)
+print("✅ LTM Manager 初始化成功")
+
+print("\n✨ Memory Managers 初始化完成，可以开始演示了！")</pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Initialize Log Output -->
+                        <div class="row mt-3" id="initLogArea" style="display: none;">
+                            <div class="col-12">
+                                <h6><i class="fas fa-terminal me-2"></i>初始化日志</h6>
+                                <div class="code-snippet" style="max-height: 200px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                    <pre id="initLogContent" style="margin: 0; color: #d4d4d4;"></pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="initResult"></div>
+                    </div>
+
+                    <!-- Demo Tabs -->
+                    <ul class="nav nav-tabs mt-5" id="memoryTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="stm-tab" data-bs-toggle="tab" data-bs-target="#stm" type="button" role="tab">
+                                <i class="fas fa-clock me-2"></i>Demo 1: Short-term Memory
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="ltm-tab" data-bs-toggle="tab" data-bs-target="#ltm" type="button" role="tab">
+                                <i class="fas fa-database me-2"></i>Demo 2: Long-term Memory
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="combined-tab" data-bs-toggle="tab" data-bs-target="#combined" type="button" role="tab">
+                                <i class="fas fa-layer-group me-2"></i>Demo 3: STM + LTM 结合
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="memoryTabContent">
+                        <!-- STM Demo -->
+                        <div class="tab-pane fade show active" id="stm" role="tabpanel">
+                            <div class="demo-section">
+                                <h5 class="text-primary">演示说明</h5>
+                                <p>STM 存储原始对话轮次，只在当前会话内有效。特点：即时存储、无需等待、但不跨会话。</p>
+
+                                <!-- STM Visual Explanation -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header bg-success text-white">
+                                                <i class="fas fa-project-diagram me-2"></i>Short-term Memory 工作流
+                                            </div>
+                                            <div class="card-body p-2">
+                                                <img src="/static/images/memory/short-term-memory-workflow.png"
+                                                     class="img-fluid"
+                                                     alt="STM Workflow"
+                                                     style="width: 100%; height: auto;">
+                                            </div>
                                         </div>
-                                        <div class="col-md-6">
-                                            <h6><i class="fas fa-archive me-2"></i>Long-term Memory</h6>
-                                            <ul>
-                                                <li>DynamoDB for structured data</li>
-                                                <li>S3 for large objects and artifacts</li>
-                                                <li>Vector embeddings in OpenSearch</li>
-                                            </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header bg-success text-white">
+                                                <i class="fas fa-plug me-2"></i>STM Hook 集成方式
+                                            </div>
+                                            <div class="card-body p-2">
+                                                <img src="/static/images/memory/short-term-memory-hook.png"
+                                                     class="img-fluid"
+                                                     alt="STM Hook"
+                                                     style="width: 100%; height: auto;">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+
+                                <h6 class="mt-4">步骤 1: 介绍自己</h6>
+                                <p class="text-muted small">在下方输入你的信息，然后点击执行。STM 会存储这次对话。</p>
+
+                                <h6 class="mt-3"><i class="fas fa-code me-2"></i>步骤 1 代码示例:</h6>
+                                <div class="code-snippet">
+<pre>from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+
+# 假设 stm_manager 和 bedrock_runtime 已在上面初始化完成
+
+# ========== 步骤 1: 存储第一条对话 ==========
+user_message = "我叫张三，是一名软件工程师"
+session_id = "session-123"
+actor_id = "user-001"
+
+# 调用 LLM 生成回复
+response = bedrock_runtime.converse(
+    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": [{"text": user_message}]}]
+)
+assistant_response = response['output']['message']['content'][0]['text']
+
+# 存储对话到 STM
+stm_manager.add_turns(
+    actor_id=actor_id,
+    session_id=session_id,
+    messages=[
+        ConversationalMessage(user_message, MessageRole.USER),
+        ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
+    ]
+)
+print(f"已存储对话到 STM，Session ID: {session_id}")</pre>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <label class="form-label">输入你的信息</label>
+                                        <textarea class="form-control" id="stmUserInput1" rows="3" placeholder="例如: 我叫张三，是一名软件工程师，喜欢用 Python..."></textarea>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Actor ID</label>
+                                        <input type="text" class="form-control" id="stmActorId" value="demo-user">
+                                    </div>
+                                </div>
+                                <button class="btn btn-success mt-3" onclick="runSTMStep1()">
+                                    <i class="fas fa-play me-2"></i>执行步骤 1
+                                    <span class="spinner-border spinner-border-sm ms-2 loading" id="stm1Loading"></span>
+                                </button>
+
+                                <!-- Step 1 Code Display -->
+                                <div class="row mt-3" id="stmStep1CodeArea" style="display: none;">
+                                    <div class="col-12">
+                                        <h6><i class="fas fa-code me-2"></i>步骤 1 代码</h6>
+                                        <div class="code-snippet" style="max-height: 400px; overflow-y: auto;">
+                                            <pre id="stmStep1Code" style="margin: 0;"></pre>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Step 1 Log Display -->
+                                <div class="row mt-3" id="stmStep1LogArea" style="display: none;">
+                                    <div class="col-12">
+                                        <h6><i class="fas fa-terminal me-2"></i>步骤 1 执行日志</h6>
+                                        <div class="code-snippet" id="stmStep1LogDisplay" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                            <pre id="stmStep1LogContent" style="margin: 0; color: #d4d4d4;"></pre>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="stmResult1"></div>
+
+                                <hr class="my-4">
+
+                                <h6>步骤 2: 询问之前的信息</h6>
+                                <p class="text-muted small">询问与步骤 1 相关的问题，测试 STM 的记忆能力。</p>
+
+                                <h6 class="mt-3"><i class="fas fa-code me-2"></i>步骤 2 代码示例:</h6>
+                                <div class="code-snippet">
+<pre>from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+
+# 假设 stm_manager 和 bedrock_runtime 已在上面初始化完成
+# session_id 和 actor_id 来自步骤 1
+
+# ========== 步骤 2: 基于历史对话回答 ==========
+follow_up_question = "你还记得我的职业是什么吗?"
+
+# 检索最近的对话历史
+recent_turns = stm_manager.get_last_k_turns(
+    actor_id=actor_id,
+    session_id=session_id,
+    k=5  # 最近 5 轮对话
+)
+
+# 构建上下文
+context = ""
+for turn in recent_turns:
+    for msg in turn:
+        role = "用户" if msg.get('role') == MessageRole.USER.value else "助手"
+        text = msg.get('content', {}).get('text', '')
+        context += f"{role}: {text}\n"
+
+# 调用 LLM (带历史上下文)
+response = bedrock_runtime.converse(
+    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": [{"text": follow_up_question}]}],
+    system=[{"text": f"历史对话:\n{context}"}]
+)
+assistant_response = response['output']['message']['content'][0]['text']
+
+# 存储新的对话
+stm_manager.add_turns(
+    actor_id=actor_id,
+    session_id=session_id,
+    messages=[
+        ConversationalMessage(follow_up_question, MessageRole.USER),
+        ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
+    ]
+)
+print(f"助手回答: {assistant_response}")</pre>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <label class="form-label">输入问题</label>
+                                        <textarea class="form-control" id="stmUserInput2" rows="2" placeholder="例如: 你还记得我的职业是什么吗?"></textarea>
+                                    </div>
+                                </div>
+                                <button class="btn btn-success mt-3" onclick="runSTMStep2()">
+                                    <i class="fas fa-play me-2"></i>执行步骤 2
+                                    <span class="spinner-border spinner-border-sm ms-2 loading" id="stm2Loading"></span>
+                                </button>
+
+                                <!-- Step 2 Code Display -->
+                                <div class="row mt-3" id="stmStep2CodeArea" style="display: none;">
+                                    <div class="col-12">
+                                        <h6><i class="fas fa-code me-2"></i>步骤 2 代码</h6>
+                                        <div class="code-snippet" style="max-height: 400px; overflow-y: auto;">
+                                            <pre id="stmStep2Code" style="margin: 0;"></pre>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Step 2 Log Display -->
+                                <div class="row mt-3" id="stmStep2LogArea" style="display: none;">
+                                    <div class="col-12">
+                                        <h6><i class="fas fa-terminal me-2"></i>步骤 2 执行日志</h6>
+                                        <div class="code-snippet" id="stmStep2LogDisplay" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                            <pre id="stmStep2LogContent" style="margin: 0; color: #d4d4d4;"></pre>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="stmResult2"></div>
+                            </div>
+                        </div>
+
+                        <!-- LTM Demo -->
+                        <div class="tab-pane fade" id="ltm" role="tabpanel">
+                            <div class="demo-section">
+                                <h5 class="text-primary">演示说明</h5>
+                                <p>LTM 自动提取用户偏好和重要信息，可跨会话使用。特点：语义提取、跨会话、智能召回。</p>
+
+                                <!-- LTM Visual Explanation -->
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <div class="card">
+                                            <div class="card-header bg-info text-white">
+                                                <i class="fas fa-plug me-2"></i>Long-term Memory Hook 集成方式
+                                            </div>
+                                            <div class="card-body p-2 text-center">
+                                                <img src="/static/images/memory/long-term-memory-hook.png"
+                                                     class="img-fluid"
+                                                     alt="LTM Hook"
+                                                     style="max-width: 100%; height: auto;">
+                                            </div>
+                                            <div class="card-footer">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-lightbulb me-2"></i>
+                                                    LTM 通过策略配置自动提取语义信息和用户偏好，实现跨会话的长期记忆能力
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h6 class="mt-4">步骤 1: 表达你的偏好</h6>
+                                <p class="text-muted small">在下方输入你的偏好信息，LTM 会自动提取并存储。</p>
+
+                                <h6 class="mt-3"><i class="fas fa-code me-2"></i>步骤 1 代码示例:</h6>
+                                <div class="code-snippet">
+<pre>from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+import time
+
+# 假设 ltm_manager 和 bedrock_runtime 已在上面初始化完成
+
+# ========== 步骤 1: 表达偏好 (Session 1) ==========
+user_preference = "我喜欢简洁的代码风格，更喜欢用 TypeScript"
+session_id_1 = "ltm-session-1"
+actor_id = "user-001"
+
+# 调用 LLM
+response = bedrock_runtime.converse(
+    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": [{"text": user_preference}]}]
+)
+assistant_response = response['output']['message']['content'][0]['text']
+
+# 存储到 LTM
+ltm_manager.add_turns(
+    actor_id=actor_id,
+    session_id=session_id_1,
+    messages=[
+        ConversationalMessage(user_preference, MessageRole.USER),
+        ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
+    ]
+)
+print("已存储偏好到 LTM")
+print("⏳ LTM 正在异步提取偏好信息，需要 10-15 秒...")
+
+# 等待 LTM 异步提取 (10-15秒)
+time.sleep(15)</pre>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <label class="form-label">输入你的偏好</label>
+                                        <textarea class="form-control" id="ltmUserInput1" rows="3" placeholder="例如: 我喜欢简洁的代码风格，更喜欢用 TypeScript..."></textarea>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Actor ID</label>
+                                        <input type="text" class="form-control" id="ltmActorId" value="demo-user">
+                                    </div>
+                                </div>
+                                <button class="btn btn-success mt-3" onclick="runLTMStep1()">
+                                    <i class="fas fa-play me-2"></i>执行步骤 1
+                                    <span class="spinner-border spinner-border-sm ms-2 loading" id="ltm1Loading"></span>
+                                </button>
+
+                                <!-- Step 1 Code Display -->
+                                <div class="row mt-3" id="ltmStep1CodeArea" style="display: none;">
+                                    <div class="col-12">
+                                        <h6><i class="fas fa-code me-2"></i>步骤 1 代码</h6>
+                                        <div class="code-snippet" style="max-height: 400px; overflow-y: auto;">
+                                            <pre id="ltmStep1Code" style="margin: 0;"></pre>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Step 1 Log Display -->
+                                <div class="row mt-3" id="ltmStep1LogArea" style="display: none;">
+                                    <div class="col-12">
+                                        <h6><i class="fas fa-terminal me-2"></i>步骤 1 执行日志</h6>
+                                        <div class="code-snippet" id="ltmStep1LogDisplay" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                            <pre id="ltmStep1LogContent" style="margin: 0; color: #d4d4d4;"></pre>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="ltmResult1"></div>
+
+                                <hr class="my-4">
+
+                                <h6>步骤 2: 新会话中询问 <span class="badge bg-warning text-dark">请先等待 15 秒</span></h6>
+                                <p class="text-muted small">
+                                    <i class="fas fa-clock me-2"></i>重要: 请等待约 15 秒后再执行此步骤，以便 LTM 完成异步处理。
+                                </p>
+
+                                <h6 class="mt-3"><i class="fas fa-code me-2"></i>步骤 2 代码示例:</h6>
+                                <div class="code-snippet">
+<pre>from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+
+# 假设 ltm_manager 和 bedrock_runtime 已在上面初始化完成
+# actor_id 来自步骤 1
+
+# ========== 步骤 2: 新会话中检索记忆 (Session 2) ==========
+user_question = "能给我一些编程建议吗?"
+session_id_2 = "ltm-session-2"  # 注意：这是一个新的会话 ID
+
+# 从 LTM 检索相关记忆
+memories = ltm_manager.search_long_term_memories(
+    query=user_question,
+    namespace_prefix="/",
+    top_k=3
+)
+
+# 构建上下文
+context = ""
+for memory in memories:
+    content = memory.get('content', {})
+    text = content.get('text', '') if isinstance(content, dict) else str(content)
+    context += f"- {text}\n"
+
+print(f"从 LTM 检索到 {len(memories)} 条相关记忆")
+
+# 调用 LLM (带长期记忆上下文)
+response = bedrock_runtime.converse(
+    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": [{"text": user_question}]}],
+    system=[{"text": f"用户的长期记忆:\n{context}"}]
+)
+assistant_response = response['output']['message']['content'][0]['text']
+
+# 存储新的对话
+ltm_manager.add_turns(
+    actor_id=actor_id,
+    session_id=session_id_2,
+    messages=[
+        ConversationalMessage(user_question, MessageRole.USER),
+        ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
+    ]
+)
+print(f"助手回答: {assistant_response}")</pre>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <label class="form-label">输入问题</label>
+                                        <textarea class="form-control" id="ltmUserInput2" rows="2" placeholder="例如: 能给我一些编程建议吗?"></textarea>
+                                    </div>
+                                </div>
+                                <button class="btn btn-success mt-3" onclick="runLTMStep2()">
+                                    <i class="fas fa-play me-2"></i>执行步骤 2
+                                    <span class="spinner-border spinner-border-sm ms-2 loading" id="ltm2Loading"></span>
+                                </button>
+
+                                <!-- Step 2 Code Display -->
+                                <div class="row mt-3" id="ltmStep2CodeArea" style="display: none;">
+                                    <div class="col-12">
+                                        <h6><i class="fas fa-code me-2"></i>步骤 2 代码</h6>
+                                        <div class="code-snippet" style="max-height: 400px; overflow-y: auto;">
+                                            <pre id="ltmStep2Code" style="margin: 0;"></pre>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Step 2 Log Display -->
+                                <div class="row mt-3" id="ltmStep2LogArea" style="display: none;">
+                                    <div class="col-12">
+                                        <h6><i class="fas fa-terminal me-2"></i>步骤 2 执行日志</h6>
+                                        <div class="code-snippet" id="ltmStep2LogDisplay" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                            <pre id="ltmStep2LogContent" style="margin: 0; color: #d4d4d4;"></pre>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="ltmResult2"></div>
+                            </div>
+                        </div>
+
+                        <!-- Combined Demo -->
+                        <div class="tab-pane fade" id="combined" role="tabpanel">
+                            <div class="demo-section">
+                                <h5 class="text-primary">演示说明</h5>
+                                <p>结合两者优势: STM 提供会话连贯性 + LTM 提供长期记忆。这是生产环境的最佳实践。</p>
+
+                                <div class="alert alert-success">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    <strong>最佳实践：</strong>
+                                    <ul class="mb-0 mt-2">
+                                        <li><strong>STM</strong> 用于维护当前会话的上下文，保持对话连贯性</li>
+                                        <li><strong>LTM</strong> 用于存储用户偏好和重要信息，实现个性化</li>
+                                        <li>两者结合使用，既保证实时性，又实现长期记忆</li>
+                                        <li>适合构建具有记忆能力的智能助手和对话系统</li>
+                                    </ul>
+                                </div>
+
+                                <div class="text-center mb-3">
+                                    <small class="text-muted">
+                                        <i class="fas fa-images me-2"></i>
+                                        想要了解更多架构细节？请查看
+                                        <a href="#" onclick="document.getElementById('stm-tab').click(); return false;">STM Demo</a> 和
+                                        <a href="#" onclick="document.getElementById('ltm-tab').click(); return false;">LTM Demo</a>
+                                        标签页中的架构图
+                                    </small>
+                                </div>
+
+                                <h6 class="mt-3">完整代码示例:</h6>
+                                <div class="code-snippet">
+<pre id="combinedCodeSnippet">from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+
+# 假设 stm_manager, ltm_manager 和 bedrock_runtime 已在上面初始化完成
+
+user_question = "根据我的偏好，能给我一些建议吗?"
+actor_id = "demo-user"
+session_id = "combined-session"
+
+# 1. 从 LTM 获取长期记忆
+ltm_memories = ltm_manager.search_long_term_memories(
+    query=user_question,
+    namespace_prefix="/",
+    top_k=3
+)
+
+# 2. 从 STM 获取会话历史
+try:
+    stm_turns = stm_manager.get_last_k_turns(
+        actor_id=actor_id,
+        session_id=session_id,
+        k=3
+    )
+except:
+    stm_turns = []
+
+# 3. 构建综合上下文
+context = ""
+if ltm_memories:
+    context += "长期记忆 (跨会话):\n"
+    for memory in ltm_memories:
+        content = memory.get('content', {})
+        text = content.get('text', '')
+        context += f"- {text}\n"
+
+if stm_turns:
+    context += "\n会话历史 (当前会话):\n"
+    for turn in stm_turns:
+        for msg in turn:
+            role = "用户" if msg.get('role') == MessageRole.USER.value else "助手"
+            text = msg.get('content', {}).get('text', '')
+            context += f"{role}: {text}\n"
+
+# 4. 调用 LLM (综合 STM + LTM 上下文)
+response = bedrock_runtime.converse(
+    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": [{"text": user_question}]}],
+    system=[{"text": context}]
+)
+assistant_response = response['output']['message']['content'][0]['text']
+
+# 5. 同时存储到 STM 和 LTM
+messages = [
+    ConversationalMessage(user_question, MessageRole.USER),
+    ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
+]
+stm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=messages)
+ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=messages)</pre>
+                                </div>
+
+                                <h6 class="mt-4">综合演示</h6>
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <label class="form-label">输入问题</label>
+                                        <textarea class="form-control" id="combinedUserInput" rows="3" placeholder="例如: 根据我的偏好，能给我一些建议吗?"></textarea>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Actor ID</label>
+                                        <input type="text" class="form-control" id="combinedActorId" value="demo-user">
+                                    </div>
+                                </div>
+                                <button class="btn btn-success mt-3" onclick="runCombinedDemo()">
+                                    <i class="fas fa-play me-2"></i>执行综合演示
+                                    <span class="spinner-border spinner-border-sm ms-2 loading" id="combinedLoading"></span>
+                                </button>
+
+                                <!-- Combined Demo Code Display -->
+                                <div class="row mt-3" id="combinedCodeArea" style="display: none;">
+                                    <div class="col-12">
+                                        <h6><i class="fas fa-code me-2"></i>执行代码</h6>
+                                        <div class="code-snippet" style="max-height: 400px; overflow-y: auto;">
+                                            <pre id="combinedCode" style="margin: 0;"></pre>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Combined Demo Log Display -->
+                                <div class="row mt-3" id="combinedLogArea" style="display: none;">
+                                    <div class="col-12">
+                                        <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                        <div class="code-snippet" id="combinedLogDisplay" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                            <pre id="combinedLogContent" style="margin: 0; color: #d4d4d4;"></pre>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="combinedResult"></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header bg-secondary text-white">
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-tools me-2"></i>Memory Management Tools
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <p class="text-muted">
-                                        <i class="fas fa-wrench me-2"></i>
-                                        Memory management interface is coming soon. This will include:
-                                    </p>
-                                    <ul>
-                                        <li>Browse and search agent memory stores</li>
-                                        <li>Visualize memory usage and patterns</li>
-                                        <li>Configure memory retention policies</li>
-                                        <li>Export and import memory snapshots</li>
-                                        <li>Memory analytics and insights</li>
-                                    </ul>
-                                </div>
-                            </div>
+                    <!-- Comparison Table -->
+                    <div class="demo-section mt-4">
+                        <h5 class="text-primary">STM vs LTM 对比表</h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>特性</th>
+                                        <th>Short-term Memory (STM)</th>
+                                        <th>Long-term Memory (LTM)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>存储内容</strong></td>
+                                        <td>原始对话轮次</td>
+                                        <td>提取的偏好和语义信息</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>处理时间</strong></td>
+                                        <td>即时 (&lt;1秒)</td>
+                                        <td>异步 (5-15秒)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>记忆范围</strong></td>
+                                        <td>当前会话内</td>
+                                        <td>跨会话、持久化</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>信息完整性</strong></td>
+                                        <td>完整保留</td>
+                                        <td>提取摘要</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>检索方式</strong></td>
+                                        <td>按时间顺序</td>
+                                        <td>语义相关性</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>适用场景</strong></td>
+                                        <td>对话连贯性、上下文维护</td>
+                                        <td>用户画像、偏好记忆</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -227,6 +877,1187 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/script.js"></script>
+    <script>
+        // State management
+        let stmSessionId = '';
+        let stmActorId = '';
+        let ltmActorId = '';
+
+        // Create STM Memory
+        async function createSTMMemory() {
+            showLoading('createSTMLoading', true);
+
+            // Show progress message
+            showResult('createMemoryResult', '⏳ 正在创建 STM Memory，请稍候...', 'success');
+
+            // Clear and prepare displays
+            document.getElementById('codeDisplayArea').style.display = 'none';
+            document.getElementById('logOutputArea').style.display = 'block';
+            document.getElementById('logContent').textContent = '';
+
+            try {
+                // Use EventSource for SSE
+                const eventSource = new EventSource('/api/memory/create-stm-stream');
+                let finalResult = null;
+
+                eventSource.addEventListener('code', (event) => {
+                    // Display code
+                    const code = event.data;
+                    document.getElementById('codeContent').textContent = code;
+                    document.getElementById('codeDisplayArea').style.display = 'block';
+                });
+
+                eventSource.addEventListener('log', (event) => {
+                    // Append log line
+                    const logContent = document.getElementById('logContent');
+                    const logDisplay = document.getElementById('logDisplay');
+                    logContent.textContent += event.data + '\n';
+                    // Auto-scroll to bottom
+                    logDisplay.scrollTop = logDisplay.scrollHeight;
+                });
+
+                eventSource.addEventListener('result', (event) => {
+                    // Final result
+                    finalResult = JSON.parse(event.data);
+
+                    if (finalResult.success) {
+                        // Auto-fill Memory ID
+                        document.getElementById('stmMemoryId').value = finalResult.memory_id;
+                        showResult('createMemoryResult', `✅ ${finalResult.message}\n\nMemory ID 已自动填充到下方输入框`, 'success');
+                    } else {
+                        showResult('createMemoryResult', '❌ ' + finalResult.message, 'error');
+                    }
+
+                    // Close connection
+                    eventSource.close();
+                    showLoading('createSTMLoading', false);
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    eventSource.close();
+                    if (!finalResult) {
+                        showResult('createMemoryResult', '❌ 连接错误，请重试', 'error');
+                    }
+                    showLoading('createSTMLoading', false);
+                };
+
+            } catch (error) {
+                showResult('createMemoryResult', '❌ 错误: ' + error.message, 'error');
+                showLoading('createSTMLoading', false);
+            }
+        }
+
+        // Create LTM Memory
+        async function createLTMMemory() {
+            showLoading('createLTMLoading', true);
+
+            // Show progress message
+            showResult('createMemoryResult', '⏳ 正在创建 LTM Memory（配置策略中），请稍候...', 'success');
+
+            // Clear and prepare displays
+            document.getElementById('codeDisplayArea').style.display = 'none';
+            document.getElementById('logOutputArea').style.display = 'block';
+            document.getElementById('logContent').textContent = '';
+
+            try {
+                // Use EventSource for SSE
+                const eventSource = new EventSource('/api/memory/create-ltm-stream');
+                let finalResult = null;
+
+                eventSource.addEventListener('code', (event) => {
+                    // Display code
+                    const code = event.data;
+                    document.getElementById('codeContent').textContent = code;
+                    document.getElementById('codeDisplayArea').style.display = 'block';
+                });
+
+                eventSource.addEventListener('log', (event) => {
+                    // Append log line
+                    const logContent = document.getElementById('logContent');
+                    const logDisplay = document.getElementById('logDisplay');
+                    logContent.textContent += event.data + '\n';
+                    // Auto-scroll to bottom
+                    logDisplay.scrollTop = logDisplay.scrollHeight;
+                });
+
+                eventSource.addEventListener('result', (event) => {
+                    // Final result
+                    finalResult = JSON.parse(event.data);
+
+                    if (finalResult.success) {
+                        // Auto-fill Memory ID
+                        document.getElementById('ltmMemoryId').value = finalResult.memory_id;
+
+                        let strategiesText = '';
+                        if (finalResult.strategies && finalResult.strategies.length > 0) {
+                            strategiesText = '\n\n配置的策略:\n';
+                            finalResult.strategies.forEach(s => {
+                                strategiesText += `- ${s.name} (${s.type})\n`;
+                            });
+                        }
+
+                        showResult('createMemoryResult', `✅ ${finalResult.message}\n\nMemory ID 已自动填充到下方输入框${strategiesText}`, 'success');
+                    } else {
+                        showResult('createMemoryResult', '❌ ' + finalResult.message, 'error');
+                    }
+
+                    // Close connection
+                    eventSource.close();
+                    showLoading('createLTMLoading', false);
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    eventSource.close();
+                    if (!finalResult) {
+                        showResult('createMemoryResult', '❌ 连接错误，请重试', 'error');
+                    }
+                    showLoading('createLTMLoading', false);
+                };
+
+            } catch (error) {
+                showResult('createMemoryResult', '❌ 错误: ' + error.message, 'error');
+                showLoading('createLTMLoading', false);
+            }
+        }
+
+        // Display logs with animation (like terminal output)
+        function displayLogsWithAnimation(logs, callback) {
+            const logElement = document.getElementById('logContent');
+            const logArea = document.getElementById('logOutputArea');
+
+            logElement.textContent = '';
+            logArea.style.display = 'block';
+
+            let index = 0;
+            const intervalId = setInterval(() => {
+                if (index < logs.length) {
+                    logElement.textContent += logs[index] + '\n';
+                    // Auto-scroll to bottom
+                    const logDisplay = document.getElementById('logDisplay');
+                    logDisplay.scrollTop = logDisplay.scrollHeight;
+                    index++;
+                } else {
+                    clearInterval(intervalId);
+                    if (callback) callback();
+                }
+            }, 100); // Display each log line every 100ms
+        }
+
+        // List Memories
+        async function listMemories() {
+            showLoading('listMemoriesLoading', true);
+
+            try {
+                const response = await fetch('/api/memory/list');
+                const result = await response.json();
+
+                if (result.success && result.memories.length > 0) {
+                    const tbody = document.getElementById('memoryListBody');
+                    tbody.innerHTML = '';
+
+                    result.memories.forEach(memory => {
+                        const row = tbody.insertRow();
+                        const memoryType = memory.has_strategies ? 'LTM' : 'STM';
+                        const typeClass = memory.has_strategies ? 'badge bg-info' : 'badge bg-success';
+
+                        row.innerHTML = `
+                            <td><small>${memory.memory_id}</small></td>
+                            <td>${memory.name}</td>
+                            <td><span class="badge bg-success">${memory.status}</span></td>
+                            <td><span class="${typeClass}">${memoryType}</span></td>
+                            <td><small>${new Date(memory.created_at).toLocaleString()}</small></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="selectMemory('${memory.memory_id}', ${memory.has_strategies})">
+                                    <i class="fas fa-check"></i> 选择
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="viewMemoryRecords('${memory.memory_id}', ${memory.has_strategies})">
+                                    <i class="fas fa-eye"></i> 查看
+                                </button>
+                            </td>
+                        `;
+                    });
+
+                    document.getElementById('memoryListSection').style.display = 'block';
+                    showResult('createMemoryResult', `✅ ${result.message}`, 'success');
+                } else if (result.success && result.memories.length === 0) {
+                    showResult('createMemoryResult', '未找到任何 Memory 资源，请先创建。', 'error');
+                } else {
+                    showResult('createMemoryResult', '❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                showResult('createMemoryResult', '❌ 错误: ' + error.message, 'error');
+            } finally {
+                showLoading('listMemoriesLoading', false);
+            }
+        }
+
+        // Select Memory
+        function selectMemory(memoryId, hasStrategies) {
+            if (hasStrategies) {
+                document.getElementById('ltmMemoryId').value = memoryId;
+                showResult('createMemoryResult', `✅ 已选择 LTM Memory: ${memoryId}`, 'success');
+            } else {
+                document.getElementById('stmMemoryId').value = memoryId;
+                showResult('createMemoryResult', `✅ 已选择 STM Memory: ${memoryId}`, 'success');
+            }
+        }
+
+        // View Memory Records
+        async function viewMemoryRecords(memoryId, hasStrategies) {
+            const actorId = prompt('请输入 Actor ID (例如: demo-user):', 'demo-user');
+            if (!actorId) return;
+
+            if (hasStrategies) {
+                // View LTM records
+                showResult('createMemoryResult', '⏳ 正在查询 LTM 记录...', 'success');
+
+                try {
+                    const response = await fetch('/api/memory/list-ltm-records', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ actor_id: actorId, max_results: 10 })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success && result.records.length > 0) {
+                        let recordsText = `✅ ${result.message}\n\n`;
+                        result.records.forEach((record, i) => {
+                            recordsText += `${i + 1}. ${record.content_full}\n`;
+                            recordsText += `   创建时间: ${new Date(record.created_at).toLocaleString()}\n\n`;
+                        });
+                        showResult('createMemoryResult', recordsText, 'success');
+                    } else if (result.success && result.records.length === 0) {
+                        showResult('createMemoryResult', '暂无 LTM 记录。', 'success');
+                    } else {
+                        showResult('createMemoryResult', '❌ ' + result.message, 'error');
+                    }
+                } catch (error) {
+                    showResult('createMemoryResult', '❌ 错误: ' + error.message, 'error');
+                }
+            } else {
+                // View STM events
+                showResult('createMemoryResult', '⏳ 正在查询 STM 事件...', 'success');
+
+                try {
+                    const response = await fetch('/api/memory/list-stm-events', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ actor_id: actorId, max_results: 10 })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success && result.events.length > 0) {
+                        let eventsText = `✅ ${result.message}\n\n`;
+                        result.events.forEach((event, i) => {
+                            eventsText += `${i + 1}. Session: ${event.session_id}\n`;
+                            event.messages.forEach(msg => {
+                                eventsText += `   ${msg.role}: ${msg.text}\n`;
+                            });
+                            eventsText += '\n';
+                        });
+                        showResult('createMemoryResult', eventsText, 'success');
+                    } else if (result.success && result.events.length === 0) {
+                        showResult('createMemoryResult', '暂无 STM 事件。', 'success');
+                    } else {
+                        showResult('createMemoryResult', '❌ ' + result.message, 'error');
+                    }
+                } catch (error) {
+                    showResult('createMemoryResult', '❌ 错误: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // Initialize Memory
+        async function initializeMemory() {
+            const stmMemoryId = document.getElementById('stmMemoryId').value.trim();
+            const ltmMemoryId = document.getElementById('ltmMemoryId').value.trim();
+
+            if (!stmMemoryId || !ltmMemoryId) {
+                showResult('initResult', '请输入 STM 和 LTM Memory ID', 'error');
+                return;
+            }
+
+            showLoading('initLoading', true);
+
+            // Show log area
+            document.getElementById('initLogArea').style.display = 'block';
+            document.getElementById('initLogContent').textContent = '';
+
+            try {
+                // Build URL with query parameters
+                const params = new URLSearchParams({
+                    stm_memory_id: stmMemoryId,
+                    ltm_memory_id: ltmMemoryId
+                });
+
+                const eventSource = new EventSource(`/api/memory/initialize-stream?${params}`);
+                let finalResult = null;
+
+                eventSource.addEventListener('log', (event) => {
+                    const logContent = document.getElementById('initLogContent');
+                    const logArea = document.getElementById('initLogArea');
+                    logContent.textContent += event.data + '\n';
+                    // Auto-scroll to bottom
+                    logArea.scrollTop = logArea.scrollHeight;
+                });
+
+                eventSource.addEventListener('result', (event) => {
+                    finalResult = JSON.parse(event.data);
+
+                    if (finalResult.success) {
+                        showResult('initResult', '✅ ' + finalResult.message, 'success');
+                    } else {
+                        showResult('initResult', '❌ ' + finalResult.message, 'error');
+                    }
+
+                    eventSource.close();
+                    showLoading('initLoading', false);
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    eventSource.close();
+                    if (!finalResult) {
+                        showResult('initResult', '❌ 连接错误，请重试', 'error');
+                    }
+                    showLoading('initLoading', false);
+                };
+
+            } catch (error) {
+                showResult('initResult', '❌ 错误: ' + error.message, 'error');
+                showLoading('initLoading', false);
+            }
+        }
+
+        // STM Step 1
+        async function runSTMStep1() {
+            const userMessage = document.getElementById('stmUserInput1').value.trim();
+            const actorId = document.getElementById('stmActorId').value.trim();
+
+            if (!userMessage) {
+                showResult('stmResult1', '请输入你的信息', 'error');
+                return;
+            }
+
+            showLoading('stm1Loading', true);
+
+            // Show Step 1 specific log and code areas
+            document.getElementById('stmStep1LogArea').style.display = 'block';
+            document.getElementById('stmStep1CodeArea').style.display = 'none';
+            document.getElementById('stmStep1LogContent').textContent = '';
+            document.getElementById('stmStep1Code').textContent = '';
+
+            try {
+                // Build URL with query parameters
+                const params = new URLSearchParams({
+                    user_message: userMessage,
+                    actor_id: actorId
+                });
+
+                const eventSource = new EventSource(`/api/memory/stm/step1-stream?${params}`);
+                let finalResult = null;
+
+                eventSource.addEventListener('code', (event) => {
+                    const code = event.data;
+                    document.getElementById('stmStep1Code').textContent = code;
+                    document.getElementById('stmStep1CodeArea').style.display = 'block';
+                });
+
+                eventSource.addEventListener('log', (event) => {
+                    const logContent = document.getElementById('stmStep1LogContent');
+                    const logDisplay = document.getElementById('stmStep1LogDisplay');
+                    logContent.textContent += event.data + '\n';
+                    logDisplay.scrollTop = logDisplay.scrollHeight;
+                });
+
+                eventSource.addEventListener('result', (event) => {
+                    finalResult = JSON.parse(event.data);
+
+                    if (finalResult.success) {
+                        stmSessionId = finalResult.session_id;
+                        stmActorId = finalResult.actor_id;
+
+                        const output = `✅ ${finalResult.message}
+
+Session ID: ${finalResult.session_id}
+
+用户: ${finalResult.user_message}
+
+助手: ${finalResult.assistant_response}
+
+---
+下一步: 请在步骤 2 中询问相关问题，测试 STM 的记忆能力。`;
+
+                        showResult('stmResult1', output, 'success');
+                    } else {
+                        showResult('stmResult1', '❌ ' + finalResult.message, 'error');
+                    }
+
+                    eventSource.close();
+                    showLoading('stm1Loading', false);
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    eventSource.close();
+                    if (!finalResult) {
+                        showResult('stmResult1', '❌ 连接错误，请重试', 'error');
+                    }
+                    showLoading('stm1Loading', false);
+                };
+
+            } catch (error) {
+                showResult('stmResult1', '❌ 错误: ' + error.message, 'error');
+                showLoading('stm1Loading', false);
+            }
+        }
+
+        // STM Step 2
+        async function runSTMStep2() {
+            const userMessage = document.getElementById('stmUserInput2').value.trim();
+
+            if (!userMessage) {
+                showResult('stmResult2', '请输入问题', 'error');
+                return;
+            }
+
+            if (!stmSessionId || !stmActorId) {
+                showResult('stmResult2', '请先执行步骤 1', 'error');
+                return;
+            }
+
+            showLoading('stm2Loading', true);
+
+            // Show Step 2 specific log and code areas
+            document.getElementById('stmStep2LogArea').style.display = 'block';
+            document.getElementById('stmStep2CodeArea').style.display = 'none';
+            document.getElementById('stmStep2LogContent').textContent = '';
+            document.getElementById('stmStep2Code').textContent = '';
+
+            try {
+                // Build URL with query parameters
+                const params = new URLSearchParams({
+                    user_message: userMessage,
+                    session_id: stmSessionId,
+                    actor_id: stmActorId
+                });
+
+                const eventSource = new EventSource(`/api/memory/stm/step2-stream?${params}`);
+                let finalResult = null;
+
+                eventSource.addEventListener('code', (event) => {
+                    const code = event.data;
+                    document.getElementById('stmStep2Code').textContent = code;
+                    document.getElementById('stmStep2CodeArea').style.display = 'block';
+                });
+
+                eventSource.addEventListener('log', (event) => {
+                    const logContent = document.getElementById('stmStep2LogContent');
+                    const logDisplay = document.getElementById('stmStep2LogDisplay');
+                    logContent.textContent += event.data + '\n';
+                    logDisplay.scrollTop = logDisplay.scrollHeight;
+                });
+
+                eventSource.addEventListener('result', (event) => {
+                    finalResult = JSON.parse(event.data);
+
+                    if (finalResult.success) {
+                        const output = `✅ ${finalResult.message}
+
+历史对话:
+${finalResult.context}
+
+当前问题: ${finalResult.user_message}
+
+助手回答: ${finalResult.assistant_response}
+
+---
+说明: 助手能够记住之前的对话内容，体现了 STM 的会话内记忆能力。`;
+
+                        showResult('stmResult2', output, 'success');
+                    } else {
+                        showResult('stmResult2', '❌ ' + finalResult.message, 'error');
+                    }
+
+                    eventSource.close();
+                    showLoading('stm2Loading', false);
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    eventSource.close();
+                    if (!finalResult) {
+                        showResult('stmResult2', '❌ 连接错误，请重试', 'error');
+                    }
+                    showLoading('stm2Loading', false);
+                };
+
+            } catch (error) {
+                showResult('stmResult2', '❌ 错误: ' + error.message, 'error');
+                showLoading('stm2Loading', false);
+            }
+        }
+
+        // LTM Step 1
+        async function runLTMStep1() {
+            const userPreference = document.getElementById('ltmUserInput1').value.trim();
+            const actorId = document.getElementById('ltmActorId').value.trim();
+
+            if (!userPreference) {
+                showResult('ltmResult1', '请输入你的偏好', 'error');
+                return;
+            }
+
+            showLoading('ltm1Loading', true);
+
+            // Show Step 1 specific log and code areas
+            document.getElementById('ltmStep1LogArea').style.display = 'block';
+            document.getElementById('ltmStep1CodeArea').style.display = 'none';
+            document.getElementById('ltmStep1LogContent').textContent = '';
+            document.getElementById('ltmStep1Code').textContent = '';
+
+            try {
+                // Build URL with query parameters
+                const params = new URLSearchParams({
+                    user_preference: userPreference,
+                    actor_id: actorId
+                });
+
+                const eventSource = new EventSource(`/api/memory/ltm/step1-stream?${params}`);
+                let finalResult = null;
+
+                eventSource.addEventListener('code', (event) => {
+                    const code = event.data;
+                    document.getElementById('ltmStep1Code').textContent = code;
+                    document.getElementById('ltmStep1CodeArea').style.display = 'block';
+                });
+
+                eventSource.addEventListener('log', (event) => {
+                    const logContent = document.getElementById('ltmStep1LogContent');
+                    const logDisplay = document.getElementById('ltmStep1LogDisplay');
+                    logContent.textContent += event.data + '\n';
+                    logDisplay.scrollTop = logDisplay.scrollHeight;
+                });
+
+                eventSource.addEventListener('result', (event) => {
+                    finalResult = JSON.parse(event.data);
+
+                    if (finalResult.success) {
+                        ltmActorId = finalResult.actor_id;
+
+                        const output = `✅ ${finalResult.message}
+
+Session ID: ${finalResult.session_id}
+
+用户偏好: ${finalResult.user_preference}
+
+助手: ${finalResult.assistant_response}
+
+---
+⏳ LTM 正在异步提取偏好信息，通常需要 10-15 秒...
+
+下一步:
+1. 等待约 15 秒
+2. 然后在步骤 2 中开始新会话，测试跨会话记忆`;
+
+                        showResult('ltmResult1', output, 'success');
+                    } else {
+                        showResult('ltmResult1', '❌ ' + finalResult.message, 'error');
+                    }
+
+                    eventSource.close();
+                    showLoading('ltm1Loading', false);
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    eventSource.close();
+                    if (!finalResult) {
+                        showResult('ltmResult1', '❌ 连接错误，请重试', 'error');
+                    }
+                    showLoading('ltm1Loading', false);
+                };
+
+            } catch (error) {
+                showResult('ltmResult1', '❌ 错误: ' + error.message, 'error');
+                showLoading('ltm1Loading', false);
+            }
+        }
+
+        // LTM Step 2
+        async function runLTMStep2() {
+            const userQuestion = document.getElementById('ltmUserInput2').value.trim();
+
+            if (!userQuestion) {
+                showResult('ltmResult2', '请输入问题', 'error');
+                return;
+            }
+
+            if (!ltmActorId) {
+                showResult('ltmResult2', '请先执行步骤 1', 'error');
+                return;
+            }
+
+            showLoading('ltm2Loading', true);
+
+            // Show Step 2 specific log and code areas
+            document.getElementById('ltmStep2LogArea').style.display = 'block';
+            document.getElementById('ltmStep2CodeArea').style.display = 'none';
+            document.getElementById('ltmStep2LogContent').textContent = '';
+            document.getElementById('ltmStep2Code').textContent = '';
+
+            try {
+                // Build URL with query parameters
+                const params = new URLSearchParams({
+                    user_question: userQuestion,
+                    actor_id: ltmActorId
+                });
+
+                const eventSource = new EventSource(`/api/memory/ltm/step2-stream?${params}`);
+                let finalResult = null;
+
+                eventSource.addEventListener('code', (event) => {
+                    const code = event.data;
+                    document.getElementById('ltmStep2Code').textContent = code;
+                    document.getElementById('ltmStep2CodeArea').style.display = 'block';
+                });
+
+                eventSource.addEventListener('log', (event) => {
+                    const logContent = document.getElementById('ltmStep2LogContent');
+                    const logDisplay = document.getElementById('ltmStep2LogDisplay');
+                    logContent.textContent += event.data + '\n';
+                    logDisplay.scrollTop = logDisplay.scrollHeight;
+                });
+
+                eventSource.addEventListener('result', (event) => {
+                    finalResult = JSON.parse(event.data);
+
+                    if (finalResult.success) {
+                        let memoryText = '';
+                        if (finalResult.memories && finalResult.memories.length > 0) {
+                            memoryText = '用户的长期记忆 (来自之前的会话):\n';
+                            finalResult.memories.forEach((m, i) => {
+                                memoryText += `${i + 1}. ${m.text} (相关性: ${m.relevance.toFixed(2)})\n`;
+                            });
+                        }
+
+                        const output = `✅ ${finalResult.message}
+
+新 Session ID: ${finalResult.session_id}
+
+${memoryText}
+
+当前问题: ${finalResult.user_question}
+
+助手回答 (基于长期记忆): ${finalResult.assistant_response}
+
+---
+说明: 即使在新会话中，助手仍能记住之前表达的偏好，这就是 LTM 的跨会话记忆能力。`;
+
+                        showResult('ltmResult2', output, 'success');
+                    } else {
+                        showResult('ltmResult2', '❌ ' + finalResult.message, 'error');
+                    }
+
+                    eventSource.close();
+                    showLoading('ltm2Loading', false);
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    eventSource.close();
+                    if (!finalResult) {
+                        showResult('ltmResult2', '❌ 连接错误，请重试', 'error');
+                    }
+                    showLoading('ltm2Loading', false);
+                };
+
+            } catch (error) {
+                showResult('ltmResult2', '❌ 错误: ' + error.message, 'error');
+                showLoading('ltm2Loading', false);
+            }
+        }
+
+        // Combined Demo
+        async function runCombinedDemo() {
+            const userQuestion = document.getElementById('combinedUserInput').value.trim();
+            const actorId = document.getElementById('combinedActorId').value.trim();
+
+            if (!userQuestion) {
+                showResult('combinedResult', '请输入问题', 'error');
+                return;
+            }
+
+            showLoading('combinedLoading', true);
+
+            // Show Combined Demo specific log and code areas
+            document.getElementById('combinedLogArea').style.display = 'block';
+            document.getElementById('combinedCodeArea').style.display = 'none';
+            document.getElementById('combinedLogContent').textContent = '';
+            document.getElementById('combinedCode').textContent = '';
+
+            try {
+                // Build URL with query parameters
+                const params = new URLSearchParams({
+                    user_question: userQuestion,
+                    actor_id: actorId
+                });
+
+                const eventSource = new EventSource(`/api/memory/combined-stream?${params}`);
+                let finalResult = null;
+
+                eventSource.addEventListener('code', (event) => {
+                    const code = event.data;
+                    document.getElementById('combinedCode').textContent = code;
+                    document.getElementById('combinedCodeArea').style.display = 'block';
+                });
+
+                eventSource.addEventListener('log', (event) => {
+                    const logContent = document.getElementById('combinedLogContent');
+                    const logDisplay = document.getElementById('combinedLogDisplay');
+                    logContent.textContent += event.data + '\n';
+                    logDisplay.scrollTop = logDisplay.scrollHeight;
+                });
+
+                eventSource.addEventListener('result', (event) => {
+                    finalResult = JSON.parse(event.data);
+
+                    if (finalResult.success) {
+                        let contextText = '';
+
+                        if (finalResult.ltm_memories && finalResult.ltm_memories.length > 0) {
+                            contextText += '长期记忆 (跨会话):\n';
+                            finalResult.ltm_memories.forEach(m => {
+                                contextText += `- ${m}\n`;
+                            });
+                            contextText += '\n';
+                        }
+
+                        if (finalResult.stm_history && finalResult.stm_history.length > 0) {
+                            contextText += '会话历史 (当前会话):\n';
+                            finalResult.stm_history.forEach(h => {
+                                contextText += `${h.role}: ${h.text}\n`;
+                            });
+                        }
+
+                        if (!contextText) {
+                            contextText = '暂无历史记忆';
+                        }
+
+                        const output = `✅ ${finalResult.message}
+
+Session ID: ${finalResult.session_id}
+
+${contextText}
+
+当前问题: ${finalResult.user_question}
+
+助手回答 (综合记忆): ${finalResult.assistant_response}
+
+---
+说明:
+- 助手同时利用了短期会话记忆和长期用户记忆
+- 这是生产环境的最佳实践模式
+- 既保证了对话连贯性，又实现了个性化`;
+
+                        showResult('combinedResult', output, 'success');
+                    } else {
+                        showResult('combinedResult', '❌ ' + finalResult.message, 'error');
+                    }
+
+                    eventSource.close();
+                    showLoading('combinedLoading', false);
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    eventSource.close();
+                    if (!finalResult) {
+                        showResult('combinedResult', '❌ 连接错误，请重试', 'error');
+                    }
+                    showLoading('combinedLoading', false);
+                };
+
+            } catch (error) {
+                showResult('combinedResult', '❌ 错误: ' + error.message, 'error');
+                showLoading('combinedLoading', false);
+            }
+        }
+
+        // Helper functions
+        function showResult(elementId, message, type) {
+            const resultDiv = document.getElementById(elementId);
+            resultDiv.innerHTML = `<div class="result-box ${type}">${message}</div>`;
+        }
+
+        function showLoading(elementId, show) {
+            const loadingElement = document.getElementById(elementId);
+            if (show) {
+                loadingElement.classList.add('active');
+            } else {
+                loadingElement.classList.remove('active');
+            }
+        }
+
+        // Real-time code-input linkage
+        // Helper function to escape special characters for code snippets
+        function escapeCodeValue(value) {
+            return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        }
+
+        // STM Demo Step 1 - Update code when user types
+        document.getElementById('stmUserInput1').addEventListener('input', function(e) {
+            updateSTMStep1Code();
+        });
+        document.getElementById('stmActorId').addEventListener('input', function(e) {
+            updateSTMStep1Code();
+        });
+
+        function updateSTMStep1Code() {
+            const userMessage = document.getElementById('stmUserInput1').value || '我叫张三，是一名软件工程师';
+            const actorId = document.getElementById('stmActorId').value || 'demo-user';
+            const sessionId = stmSessionId || 'stm-session-xxx';
+
+            const codeSnippet = `# STM Demo - 步骤 1: 存储第一条对话
+from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+
+# 假设 stm_manager 和 bedrock_runtime 已在上面初始化完成
+
+user_message = "${escapeCodeValue(userMessage)}"
+actor_id = "${escapeCodeValue(actorId)}"
+session_id = "${sessionId}"
+
+print("📝 用户消息:", user_message)
+print("👤 Actor ID:", actor_id)
+print("🔗 Session ID:", session_id)
+print()
+
+# 调用 LLM 生成回复
+print("🤖 调用 LLM 生成回复...")
+response = bedrock_runtime.converse(
+    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": [{"text": user_message}]}]
+)
+assistant_response = response['output']['message']['content'][0]['text']
+print("✅ LLM 回复:", assistant_response[:50], "...")
+print()
+
+# 存储到 STM
+print("💾 存储对话到 STM...")
+stm_manager.add_turns(
+    actor_id=actor_id,
+    session_id=session_id,
+    messages=[
+        ConversationalMessage(user_message, MessageRole.USER),
+        ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
+    ]
+)
+print("✅ 已存储到 Short-term Memory")
+print(f"📊 Session ID: {session_id}")`;
+
+            // Find the code snippet in STM tab
+            const stmTab = document.getElementById('stm');
+            const codeBlock = stmTab.querySelector('.code-snippet pre');
+            if (codeBlock) {
+                codeBlock.textContent = codeSnippet;
+            }
+        }
+
+        // STM Demo Step 2 - Update code when user types
+        document.getElementById('stmUserInput2').addEventListener('input', function(e) {
+            updateSTMStep2Code();
+        });
+
+        function updateSTMStep2Code() {
+            const userMessage = document.getElementById('stmUserInput2').value || '你还记得我的职业是什么吗?';
+            const actorId = document.getElementById('stmActorId').value || 'demo-user';
+            const sessionId = stmSessionId || 'stm-session-xxx';
+
+            const codeSnippet = `# STM Demo - 步骤 2: 基于历史对话回答
+from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+
+# 假设 stm_manager 和 bedrock_runtime 已在上面初始化完成
+
+user_message = "${escapeCodeValue(userMessage)}"
+session_id = "${sessionId}"
+actor_id = "${escapeCodeValue(actorId)}"
+
+print("📝 用户问题:", user_message)
+print("🔗 Session ID:", session_id)
+print()
+
+# 获取历史对话
+print("🔍 从 STM 检索历史对话...")
+recent_turns = stm_manager.get_last_k_turns(
+    actor_id=actor_id,
+    session_id=session_id,
+    k=5
+)
+
+# 构建上下文
+context = ""
+for turn in recent_turns:
+    for msg in turn:
+        role = "用户" if msg.get('role') == MessageRole.USER.value else "助手"
+        text = msg.get('content', {}).get('text', '')
+        context += f"{role}: {text}\\n"
+
+print(f"✅ 检索到 {len(recent_turns)} 轮历史对话")
+print()
+
+# 调用 LLM (带历史上下文)
+print("🤖 调用 LLM 生成回复 (基于历史上下文)...")
+response = bedrock_runtime.converse(
+    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": [{"text": user_message}]}],
+    system=[{"text": f"历史对话:\\n{context}"}]
+)
+assistant_response = response['output']['message']['content'][0]['text']
+print("✅ LLM 回复:", assistant_response[:50], "...")
+print()
+
+# 存储新的对话
+print("💾 存储新对话到 STM...")
+stm_manager.add_turns(
+    actor_id=actor_id,
+    session_id=session_id,
+    messages=[
+        ConversationalMessage(user_message, MessageRole.USER),
+        ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
+    ]
+)
+print("✅ 已存储，对话历史已更新")`;
+
+            // Update the same code block - it's shared between step 1 and step 2
+            const stmTab = document.getElementById('stm');
+            const codeBlock = stmTab.querySelector('.code-snippet pre');
+            if (codeBlock) {
+                codeBlock.textContent = codeSnippet;
+            }
+        }
+
+        // LTM Demo Step 1 - Update code when user types
+        document.getElementById('ltmUserInput1').addEventListener('input', function(e) {
+            updateLTMStep1Code();
+        });
+        document.getElementById('ltmActorId').addEventListener('input', function(e) {
+            updateLTMStep1Code();
+        });
+
+        function updateLTMStep1Code() {
+            const userPreference = document.getElementById('ltmUserInput1').value || '我喜欢简洁的代码风格，更喜欢用 TypeScript';
+            const actorId = document.getElementById('ltmActorId').value || 'demo-user';
+            const sessionId = 'ltm-session-1-xxx';
+
+            const codeSnippet = `# LTM Demo - 步骤 1: 表达偏好
+from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+import time
+
+# 假设 ltm_manager 和 bedrock_runtime 已在上面初始化完成
+
+user_preference = "${escapeCodeValue(userPreference)}"
+actor_id = "${escapeCodeValue(actorId)}"
+session_id = "${sessionId}"
+
+print("📝 用户偏好:", user_preference)
+print("👤 Actor ID:", actor_id)
+print("🔗 Session ID:", session_id)
+print()
+
+# 调用 LLM 生成回复
+print("🤖 调用 LLM 生成回复...")
+response = bedrock_runtime.converse(
+    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": [{"text": user_preference}]}]
+)
+assistant_response = response['output']['message']['content'][0]['text']
+print("✅ LLM 回复:", assistant_response[:50], "...")
+print()
+
+# 存储到 LTM
+print("💾 存储偏好到 LTM...")
+ltm_manager.add_turns(
+    actor_id=actor_id,
+    session_id=session_id,
+    messages=[
+        ConversationalMessage(user_preference, MessageRole.USER),
+        ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
+    ]
+)
+print("✅ 已存储到 Long-term Memory")
+print(f"📊 Session ID: {session_id}")
+print()
+print("⏳ LTM 正在异步提取偏好信息，通常需要 10-15 秒...")`;
+
+            const ltmTab = document.getElementById('ltm');
+            const codeBlock = ltmTab.querySelector('.code-snippet pre');
+            if (codeBlock) {
+                codeBlock.textContent = codeSnippet;
+            }
+        }
+
+        // LTM Demo Step 2 - Update code when user types
+        document.getElementById('ltmUserInput2').addEventListener('input', function(e) {
+            updateLTMStep2Code();
+        });
+
+        function updateLTMStep2Code() {
+            const userQuestion = document.getElementById('ltmUserInput2').value || '能给我一些编程建议吗?';
+            const actorId = document.getElementById('ltmActorId').value || 'demo-user';
+            const sessionId = 'ltm-session-2-xxx';
+
+            const codeSnippet = `# LTM Demo - 步骤 2: 新会话中检索记忆
+from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+
+# 假设 ltm_manager 和 bedrock_runtime 已在上面初始化完成
+
+user_question = "${escapeCodeValue(userQuestion)}"
+actor_id = "${escapeCodeValue(actorId)}"
+session_id = "${sessionId}"
+
+print("📝 用户问题:", user_question)
+print("🔗 新 Session ID:", session_id)
+print()
+
+# 从 LTM 检索相关记忆
+print("🔍 从 LTM 检索相关记忆...")
+memories = ltm_manager.search_long_term_memories(
+    query=user_question,
+    namespace_prefix="/",
+    top_k=5
+)
+
+# 构建上下文
+context = ""
+for memory in memories:
+    content = memory.get('content', {})
+    text = content.get('text', '') if isinstance(content, dict) else str(content)
+    context += f"- {text}\\n"
+
+print(f"✅ 检索到 {len(memories)} 条相关记忆")
+print()
+
+# 显示记忆内容
+if memories:
+    print("📜 检索到的长期记忆:")
+    for i, memory in enumerate(memories[:3], 1):
+        content = memory.get('content', {})
+        text = content.get('text', '')
+        relevance = memory.get('relevanceScore', 0.0)
+        print(f"  {i}. {text[:60]}... (相关性: {relevance:.2f})")
+print()
+
+# 调用 LLM (带长期记忆上下文)
+print("🤖 调用 LLM 生成回复 (基于长期记忆)...")
+response = bedrock_runtime.converse(
+    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": [{"text": user_question}]}],
+    system=[{"text": f"用户的长期记忆:\\n{context}"}]
+)
+assistant_response = response['output']['message']['content'][0]['text']
+print("✅ LLM 回复:", assistant_response[:50], "...")
+print()
+
+# 存储新的对话
+print("💾 存储新对话到 LTM...")
+ltm_manager.add_turns(
+    actor_id=actor_id,
+    session_id=session_id,
+    messages=[
+        ConversationalMessage(user_question, MessageRole.USER),
+        ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
+    ]
+)
+print("✅ 已存储，跨会话记忆功能展示完成")`;
+
+            const ltmTab = document.getElementById('ltm');
+            const codeBlock = ltmTab.querySelector('.code-snippet pre');
+            if (codeBlock) {
+                codeBlock.textContent = codeSnippet;
+            }
+        }
+
+        // Combined Demo - Update code when user types
+        document.getElementById('combinedUserInput').addEventListener('input', function(e) {
+            updateCombinedCode();
+        });
+        document.getElementById('combinedActorId').addEventListener('input', function(e) {
+            updateCombinedCode();
+        });
+
+        function updateCombinedCode() {
+            const userQuestion = document.getElementById('combinedUserInput').value || '根据我的偏好，能给我一些建议吗?';
+            const actorId = document.getElementById('combinedActorId').value || 'demo-user';
+            const sessionId = 'combined-session-xxx';
+
+            const codeSnippet = `from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
+
+# 假设 stm_manager, ltm_manager 和 bedrock_runtime 已在上面初始化完成
+
+user_question = "${escapeCodeValue(userQuestion)}"
+actor_id = "${escapeCodeValue(actorId)}"
+session_id = "${sessionId}"
+
+# 1. 从 LTM 获取长期记忆
+ltm_memories = ltm_manager.search_long_term_memories(
+    query=user_question,
+    namespace_prefix="/",
+    top_k=3
+)
+
+# 2. 从 STM 获取会话历史
+try:
+    stm_turns = stm_manager.get_last_k_turns(
+        actor_id=actor_id,
+        session_id=session_id,
+        k=3
+    )
+except:
+    stm_turns = []
+
+# 3. 构建综合上下文
+context = ""
+if ltm_memories:
+    context += "长期记忆 (跨会话):\\n"
+    for memory in ltm_memories:
+        content = memory.get('content', {})
+        text = content.get('text', '')
+        context += f"- {text}\\n"
+
+if stm_turns:
+    context += "\\n会话历史 (当前会话):\\n"
+    for turn in stm_turns:
+        for msg in turn:
+            role = "用户" if msg.get('role') == MessageRole.USER.value else "助手"
+            text = msg.get('content', {}).get('text', '')
+            context += f"{role}: {text}\\n"
+
+# 4. 调用 LLM (综合 STM + LTM 上下文)
+response = bedrock_runtime.converse(
+    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    messages=[{"role": "user", "content": [{"text": user_question}]}],
+    system=[{"text": context}]
+)
+assistant_response = response['output']['message']['content'][0]['text']
+
+# 5. 同时存储到 STM 和 LTM
+messages = [
+    ConversationalMessage(user_question, MessageRole.USER),
+    ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
+]
+stm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=messages)
+ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=messages)`;
+
+            const codeBlock = document.getElementById('combinedCodeSnippet');
+            if (codeBlock) {
+                codeBlock.textContent = codeSnippet;
+            }
+        }
+
+    </script>
 </body>
 </html>
-
