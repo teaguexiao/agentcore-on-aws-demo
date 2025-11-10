@@ -32,11 +32,18 @@ The web application provides an intuitive interface for accessing AgentCore capa
    - Support for data science libraries (numpy, pandas, matplotlib, etc.)
    - Real-time output streaming
 
+4. **🧠 AgentCore Memory** - Persistent knowledge management with interactive demonstrations:
+   - **Short-term Memory (STM)**: Session-based conversational memory
+   - **Long-term Memory (LTM)**: Cross-session semantic memory with intelligent extraction
+   - **Combined Mode**: Best practice integration of STM + LTM
+   - Real-time streaming execution with code examples
+   - Interactive web UI with live demonstrations
+   - Memory resource management and monitoring
+
 ### Roadmap Features
 
 The following AgentCore platform services are planned for future releases:
 
-- **🧠 AgentCore Memory** - Persistent knowledge management with semantic and event memory
 - **🔗 AgentCore Gateway** - Transform existing APIs into agent-compatible tools
 - **⚙️ AgentCore Runtime** - Deploy and scale agents with managed infrastructure
 
@@ -253,6 +260,43 @@ print("✓ Visualization saved successfully!")
 - Visualization: `matplotlib`, `seaborn`, `plotly`
 - General: Standard Python library
 
+### Using AgentCore Memory
+
+**Interactive Memory Demonstrations**
+
+1. Navigate to **AgentCore Memory** tab
+2. Choose from three demonstration modes:
+
+**Demo 1: Short-term Memory (STM)**
+- Step 1: Introduce yourself with personal information
+- Step 2: Ask questions about the information you just provided
+- STM stores raw conversation turns within the current session
+- Perfect for maintaining conversation context
+
+**Demo 2: Long-term Memory (LTM)**
+- Step 1: Express your preferences or important information
+- Wait 10-15 seconds for LTM to asynchronously extract semantic information
+- Step 2: Start a new session and ask related questions
+- LTM retrieves relevant information across different sessions
+- Ideal for building user profiles and preferences
+
+**Demo 3: Combined Mode (Best Practice)**
+- Combines STM for conversation continuity + LTM for long-term knowledge
+- Demonstrates production-ready memory architecture
+- Shows how to build context-aware, personalized AI assistants
+
+**Features:**
+- Real-time streaming execution logs
+- Live code examples showing actual implementation
+- Memory resource management (create, list, view records)
+- Visual architecture diagrams for STM and LTM workflows
+- Interactive demonstrations with immediate feedback
+
+**Setup Requirements:**
+- Memory resources can be created directly in the web UI
+- Navigate to "Memory Resource Management" section to create STM/LTM memories
+- No additional setup required
+
 ### Session Management
 
 - **Browser Sessions**: Automatically managed with 20-minute timeout
@@ -266,6 +310,7 @@ agentcore-on-aws-demo/
 ├── app.py                          # Main FastAPI application
 ├── agentcore_browser_tool.py       # Browser automation integration
 ├── agentcore_code_interpreter.py   # Code interpreter integration
+├── agentcore_memory_api.py         # Memory API backend module
 ├── requirements.txt                # Python dependencies
 ├── .env                           # Environment configuration (create this)
 ├── templates/                     # HTML templates
@@ -273,9 +318,18 @@ agentcore-on-aws-demo/
 │   ├── login.html                 # Login page
 │   ├── browser-use-agentcore.html # Browser automation UI
 │   ├── code-interpreter-agentcore.html # Code interpreter UI
-│   └── agentcore-*.html          # Roadmap feature templates
-├── static/                        # Static assets (CSS, JS, images)
-└── interactive_tools/             # Browser viewer and utilities
+│   ├── agentcore-memory.html      # Memory demonstrations UI
+│   └── agentcore-*.html          # Other feature templates
+├── static/                        # Static assets
+│   ├── css/                       # Stylesheets
+│   ├── js/                        # JavaScript files
+│   └── images/                    # Images and diagrams
+│       └── memory/                # Memory architecture diagrams
+├── interactive_tools/             # Browser viewer and utilities
+└── docs/                          # Documentation files
+    ├── MEMORY_DEMO_README.md      # Memory demo guide
+    ├── MEMORY_ARCHITECTURE.md     # Memory architecture details
+    └── STREAMING_RESPONSE_GUIDE.md # Streaming implementation guide
 ```
 
 ## 🔧 Development
@@ -370,4 +424,4 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 **Built with ❤️ using Amazon Bedrock AgentCore and FastAPI**
 
-*Last Updated: 2025-11-06*
+*Last Updated: 2025-11-07*

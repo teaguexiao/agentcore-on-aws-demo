@@ -3,7 +3,7 @@ import asyncio
 import sys
 import threading
 from fastapi import FastAPI, Request, Form, WebSocket, WebSocketDisconnect, BackgroundTasks, Depends, Response, Cookie
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import uvicorn
@@ -17,6 +17,7 @@ import secrets
 from fastapi.middleware.wsgi import WSGIMiddleware
 from pydantic import BaseModel
 import time
+import httpx
 
 
 # Import computer use functions
@@ -37,6 +38,9 @@ from agentcore_code_interpreter import (
     execute_agentcore_code, reset_agentcore_sessions, get_active_sessions,
     init_agentcore_code_interpreter_vars
 )
+
+# Import AgentCore memory API
+from agentcore_memory_api import memory_api
 
 
 # Load environment variables
@@ -607,6 +611,266 @@ async def reset_agentcore_session_endpoint():
             "success": False,
             "error": result["error"]
         }, status_code=500)
+
+# AgentCore Memory API endpoints
+class MemoryInitRequest(BaseModel):
+    stm_memory_id: str
+    ltm_memory_id: str
+
+class MemorySTMStep1Request(BaseModel):
+    user_message: str
+    actor_id: str
+
+class MemorySTMStep2Request(BaseModel):
+    user_message: str
+    session_id: str
+    actor_id: str
+
+class MemoryLTMStep1Request(BaseModel):
+    user_preference: str
+    actor_id: str
+
+class MemoryLTMStep2Request(BaseModel):
+    user_question: str
+    actor_id: str
+
+class MemoryCombinedRequest(BaseModel):
+    user_question: str
+    actor_id: str
+
+@app.post("/api/memory/initialize")
+async def initialize_memory(request: MemoryInitRequest):
+    """Initialize Memory Managers"""
+    result = memory_api.initialize(request.stm_memory_id, request.ltm_memory_id)
+    return JSONResponse(result)
+
+@app.get("/api/memory/initialize-stream")
+async def initialize_memory_stream(stm_memory_id: str, ltm_memory_id: str):
+    """Initialize Memory Managers (streaming)"""
+    async def event_generator():
+        for event in memory_api.initialize_stream(stm_memory_id, ltm_memory_id):
+            yield event
+            await asyncio.sleep(0.05)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@app.post("/api/memory/stm/step1")
+async def memory_stm_step1(request: MemorySTMStep1Request):
+    """STM Demo - Step 1: Store first message"""
+    result = memory_api.demo_stm_step1(request.user_message, request.actor_id)
+    return JSONResponse(result)
+
+@app.get("/api/memory/stm/step1-stream")
+async def memory_stm_step1_stream(user_message: str, actor_id: str):
+    """STM Demo - Step 1: Store first message (streaming)"""
+    async def event_generator():
+        for event in memory_api.demo_stm_step1_stream(user_message, actor_id):
+            yield event
+            await asyncio.sleep(0.05)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@app.post("/api/memory/stm/step2")
+async def memory_stm_step2(request: MemorySTMStep2Request):
+    """STM Demo - Step 2: Query with history"""
+    result = memory_api.demo_stm_step2(request.user_message, request.session_id, request.actor_id)
+    return JSONResponse(result)
+
+@app.get("/api/memory/stm/step2-stream")
+async def memory_stm_step2_stream(user_message: str, session_id: str, actor_id: str):
+    """STM Demo - Step 2: Query with history (streaming)"""
+    async def event_generator():
+        for event in memory_api.demo_stm_step2_stream(user_message, session_id, actor_id):
+            yield event
+            await asyncio.sleep(0.05)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@app.post("/api/memory/ltm/step1")
+async def memory_ltm_step1(request: MemoryLTMStep1Request):
+    """LTM Demo - Step 1: Express preferences"""
+    result = memory_api.demo_ltm_step1(request.user_preference, request.actor_id)
+    return JSONResponse(result)
+
+@app.post("/api/memory/ltm/step2")
+async def memory_ltm_step2(request: MemoryLTMStep2Request):
+    """LTM Demo - Step 2: Retrieve from new session"""
+    result = memory_api.demo_ltm_step2(request.user_question, request.actor_id)
+    return JSONResponse(result)
+
+@app.get("/api/memory/ltm/step1-stream")
+async def memory_ltm_step1_stream(user_preference: str, actor_id: str):
+    """LTM Demo - Step 1: Express preferences (streaming)"""
+    async def event_generator():
+        for event in memory_api.demo_ltm_step1_stream(user_preference, actor_id):
+            yield event
+            await asyncio.sleep(0.05)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@app.get("/api/memory/ltm/step2-stream")
+async def memory_ltm_step2_stream(user_question: str, actor_id: str):
+    """LTM Demo - Step 2: Retrieve from new session (streaming)"""
+    async def event_generator():
+        for event in memory_api.demo_ltm_step2_stream(user_question, actor_id):
+            yield event
+            await asyncio.sleep(0.05)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@app.post("/api/memory/combined")
+async def memory_combined(request: MemoryCombinedRequest):
+    """Combined Demo: STM + LTM"""
+    result = memory_api.demo_combined(request.user_question, request.actor_id)
+    return JSONResponse(result)
+
+@app.get("/api/memory/combined-stream")
+async def memory_combined_stream(user_question: str, actor_id: str):
+    """Combined Demo: STM + LTM (streaming)"""
+    async def event_generator():
+        for event in memory_api.demo_combined_stream(user_question, actor_id):
+            yield event
+            await asyncio.sleep(0.05)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+# Memory Management API endpoints
+class CreateMemoryRequest(BaseModel):
+    name: Optional[str] = None
+
+class ListEventsRequest(BaseModel):
+    actor_id: str
+    session_id: Optional[str] = None
+    max_results: Optional[int] = 10
+
+class ListRecordsRequest(BaseModel):
+    actor_id: Optional[str] = None
+    max_results: Optional[int] = 10
+
+class DeleteMemoryRequest(BaseModel):
+    memory_id: str
+
+@app.post("/api/memory/create-stm")
+async def create_stm_memory(request: CreateMemoryRequest):
+    """Create STM Memory"""
+    result = memory_api.create_stm_memory(request.name)
+    return JSONResponse(result)
+
+@app.get("/api/memory/create-stm-stream")
+async def create_stm_memory_stream(name: str = None):
+    """Create STM Memory with streaming response"""
+    async def event_generator():
+        for event in memory_api.create_stm_memory_stream(name):
+            yield event
+            # Small delay to ensure proper streaming
+            await asyncio.sleep(0.1)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@app.post("/api/memory/create-ltm")
+async def create_ltm_memory(request: CreateMemoryRequest):
+    """Create LTM Memory"""
+    result = memory_api.create_ltm_memory(request.name)
+    return JSONResponse(result)
+
+@app.get("/api/memory/create-ltm-stream")
+async def create_ltm_memory_stream(name: str = None):
+    """Create LTM Memory with streaming response"""
+    async def event_generator():
+        for event in memory_api.create_ltm_memory_stream(name):
+            yield event
+            # Small delay to ensure proper streaming
+            await asyncio.sleep(0.1)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@app.get("/api/memory/list")
+async def list_memories():
+    """List all Memory resources"""
+    result = memory_api.list_memories()
+    return JSONResponse(result)
+
+@app.post("/api/memory/list-stm-events")
+async def list_stm_events(request: ListEventsRequest):
+    """List STM events"""
+    result = memory_api.list_stm_events(request.actor_id, request.session_id, request.max_results)
+    return JSONResponse(result)
+
+@app.post("/api/memory/list-ltm-records")
+async def list_ltm_records(request: ListRecordsRequest):
+    """List LTM records"""
+    result = memory_api.list_ltm_records(request.actor_id, request.max_results)
+    return JSONResponse(result)
+
+@app.post("/api/memory/delete")
+async def delete_memory(request: DeleteMemoryRequest):
+    """Delete Memory resource"""
+    result = memory_api.delete_memory(request.memory_id)
+    return JSONResponse(result)
 
 # Initialize shared variables
 if __name__ == "__main__":
