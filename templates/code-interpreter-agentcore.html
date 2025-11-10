@@ -10,87 +10,349 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
     <style>
-        .nav-tabs .nav-link {
-            color: #495057;
-            font-weight: 500;
+        /* Split Panel Layout */
+        .split-container {
+            display: flex;
+            height: calc(100vh - 150px);
+            min-height: 800px;
+            gap: 20px;
+            margin-top: 20px;
         }
-        .nav-tabs .nav-link.active {
-            color: #0d6efd;
+
+        .left-panel, .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            font-size: 1.2rem;
             font-weight: 600;
         }
-        .CodeMirror {
-            height: 300px;
-            border: 1px solid #ddd;
+
+        .right-panel .panel-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        /* Scenario Tabs */
+        .scenario-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .scenario-tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            font-weight: 500;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .scenario-tab:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .scenario-tab.active {
+            color: #667eea;
+            background: white;
+        }
+
+        .scenario-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #667eea;
+        }
+
+        .scenario-tab .badge {
+            margin-left: 8px;
+            font-size: 0.65rem;
+        }
+
+        /* Scenario Content */
+        .scenario-content {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .scenario-content.active {
+            display: flex;
+        }
+
+        .scenario-description {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 12px 15px;
+            margin-bottom: 15px;
             border-radius: 4px;
+            flex-shrink: 0;
         }
-        .output-container {
-            background-color: #f8f9fa;
-            border: 1px solid #ddd;
-            border-radius: 0 0 4px 4px;
-            padding: 15px;
-            min-height: 150px;
-            max-height: 300px;
-            overflow-y: auto;
-            font-family: monospace;
-            white-space: pre-wrap;
+
+        .scenario-description h5 {
+            margin: 0 0 8px 0;
+            color: #667eea;
+            font-size: 0.95rem;
         }
-        #event-log {
-            max-height: 150px;
-            overflow-y: auto;
-            font-family: monospace;
+
+        .scenario-description p {
+            margin: 0;
+            color: #6c757d;
             font-size: 0.85rem;
         }
-        .execution-results .result-section {
+
+        /* Code Editor */
+        .CodeMirror {
+            height: 100% !important;
+            min-height: 500px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .code-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 500px;
             margin-bottom: 15px;
         }
-        .execution-results pre {
-            margin: 0;
-            white-space: pre-wrap;
-        }
-        .code-controls {
-            margin: 15px 0;
-        }
-        .sandbox-info {
-            font-size: 0.8rem;
-            color: #6c757d;
-            margin-top: 5px;
-        }
-        .coming-soon-badge {
-            font-size: 0.65rem;
-            margin-left: 5px;
-            padding: 0.25em 0.5em;
-            vertical-align: middle;
-            font-weight: normal;
+
+        .code-section > div:last-child {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
 
-        /* GitHub link styles */
-        .github-link {
-            color: #333;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 6px;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            transition: all 0.2s ease-in-out;
-            display: inline-flex;
+        .code-section-header {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 8px;
+            margin-bottom: 10px;
         }
 
-        .github-link:hover {
-            color: #0d6efd;
-            background-color: #e9ecef;
-            border-color: #0d6efd;
-            text-decoration: none;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        .code-section-header h6 {
+            margin: 0;
+            color: #495057;
+            font-weight: 600;
         }
 
-        .github-icon {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
+        .code-label {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #e7f3ff;
+            color: #0066cc;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Execute Button */
+        .execute-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+            flex-shrink: 0;
+        }
+
+        .execute-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .execute-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .execute-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Output Panel */
+        .output-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .output-header h6 {
+            margin: 0;
+            color: #495057;
+            font-weight: 600;
+        }
+
+        .session-badge {
+            padding: 6px 12px;
+            background: #e7f3ff;
+            color: #0066cc;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .output-container {
+            flex: 1;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 6px;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 300px;
+            max-height: 400px;
+        }
+
+        .output-placeholder {
+            color: #858585;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .output-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* Execution Log */
+        .execution-log {
+            margin-top: 20px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 250px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .execution-log h6 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .log-entry {
+            font-size: 0.85rem;
+            padding: 4px 0;
+            font-family: monospace;
+        }
+
+        .log-entry .timestamp {
+            color: #6c757d;
+            margin-right: 8px;
+        }
+
+        .log-entry.info { color: #0066cc; }
+        .log-entry.success { color: #28a745; }
+        .log-entry.error { color: #dc3545; }
+        .log-entry.warning { color: #ffc107; }
+
+        /* Reset Button */
+        .reset-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 8px;
+            background: #6c757d;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .reset-btn:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .split-container {
+                flex-direction: column;
+                height: auto;
+                min-height: auto;
+            }
+
+            .left-panel, .right-panel {
+                min-height: 600px;
+            }
+
+            .code-section {
+                min-height: 400px;
+            }
+
+            .CodeMirror {
+                min-height: 400px;
+            }
+        }
+
+        /* Coming Soon Overlay */
+        .coming-soon-overlay {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .coming-soon-overlay::after {
+            content: 'Coming Soon';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(108, 117, 125, 0.95);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            pointer-events: none;
+            z-index: 10;
         }
     </style>
 </head>
@@ -99,88 +361,165 @@
         {% include 'partials/header.html' %}
 
         <div class="row main-content">
-            <div class="col-12 mt-4">
-                <!-- Content for AgentCore Code Interpreter -->
-                <div class="container">
-                            <h2 class="text-center mb-4">AWS Bedrock AgentCore Code Interpreter</h2>
-                            <div class="row">
-                                <div class="col-12">
-                                    <div class="card">
-                                        <div class="card-header bg-primary text-white">
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <span>Python Code</span>
-                                                <div>
-                                                    <span class="sandbox-info" id="sandbox-status">Session ID: Not initialized</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body">
-                                            <textarea id="code-editor" class="form-control" rows="10">
-# Example: Compute prime numbers using Sieve of Eratosthenes
-# 示例：使用埃拉托斯特尼筛法计算质数
-import numpy as np
-import time
-from tqdm import tqdm
+            <div class="col-12">
+                <h2 class="text-center mb-2">AgentCore SDK Demo</h2>
+                <p class="text-center text-muted mb-4">Experience our easy-to-use SDK with live execution results</p>
 
-def sieve_of_eratosthenes(limit):
-    sieve = [True] * (limit + 1)
-    sieve[0] = sieve[1] = False
-    
-    for i in tqdm(range(2, int(np.sqrt(limit)) + 1), desc="Finding primes"):
-        if sieve[i]:
-            for j in range(i*i, limit + 1, i):
-                sieve[j] = False
-        time.sleep(0.01)  # Add delay to extend runtime
-    
-    return [i for i in range(limit + 1) if sieve[i]]
+                <!-- Split Panel Layout -->
+                <div class="split-container">
+                    <!-- Left Panel: SDK Scenarios -->
+                    <div class="left-panel">
+                        <div class="panel-header">
+                            <i class="fas fa-code me-2"></i>SDK Usage Scenarios
+                        </div>
 
-# Perform calculation with progress tracking
-print("Starting prime number calculation...")
-start_time = time.time()
+                        <!-- Scenario Tabs -->
+                        <div class="scenario-tabs">
+                            <button class="scenario-tab active" data-scenario="code-execution">
+                                <i class="fas fa-play-circle me-2"></i>Code Execution
+                            </button>
+                            <button class="scenario-tab" data-scenario="file-management">
+                                <i class="fas fa-folder me-2"></i>File Management
+                                <span class="badge bg-secondary">Soon</span>
+                            </button>
+                            <button class="scenario-tab" data-scenario="shell-command">
+                                <i class="fas fa-terminal me-2"></i>Shell Command
+                                <span class="badge bg-secondary">Soon</span>
+                            </button>
+                        </div>
 
-# Calculate primes up to 10000
-primes = sieve_of_eratosthenes(10000)
+                        <!-- Scenario 1: Code Execution -->
+                        <div class="scenario-content active" id="scenario-code-execution">
+                            <div class="scenario-description">
+                                <h5><i class="fas fa-lightbulb me-2"></i>Scenario Description</h5>
+                                <p class="mb-0">Execute Python code using AgentCore SDK. Perfect for data analysis, ML tasks, and more. Get started with just a few lines!</p>
+                            </div>
 
-# Generate statistics about the primes
-prime_count = len(primes)
-avg_prime = np.mean(primes)
-max_gaps = []
-
-for i in range(1, len(primes)):
-    max_gaps.append(primes[i] - primes[i-1])
-
-execution_time = time.time() - start_time
-print(f"\nExecution completed in {execution_time:.2f} seconds")
-print(f"\nPrimes: {primes}")
-</textarea>
-                                            <div class="code-controls d-flex justify-content-between">
-                                                <button id="execute-btn" class="btn btn-primary">Execute Code</button>
-                                                <button id="reset-btn" class="btn btn-secondary">Reset Sandbox</button>
-                                            </div>
-                                            <div class="mt-4">
-                                                <h5>Output:</h5>
-                                                <div id="execution-log" class="mb-2">
-                                                    <div class="card">
-                                                        <div class="card-header bg-secondary text-white">
-                                                            <h6 class="mb-0">Execution Log</h6>
-                                                        </div>
-                                                        <div class="card-body p-2">
-                                                            <div id="event-log" class="small">Waiting for execution...</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="card">
-                                                    <div class="card-header bg-dark text-white">
-                                                        <h6 class="mb-0">Results</h6>
-                                                    </div>
-                                                    <div class="card-body p-0">
-                                                        <div id="code-output" class="output-container">Results will appear here...</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                            <div class="code-section">
+                                <div class="code-section-header">
+                                    <h6><i class="fas fa-file-code me-2"></i>Example Code</h6>
+                                    <span class="code-label">Python + AgentCore SDK</span>
                                 </div>
+                                <textarea id="code-editor-execution" class="form-control">import boto3
+import json
+
+# Code to execute
+code_to_execute = """
+print("Hello World!!!")
+"""
+
+# Initialize the bedrock-agentcore client
+client = boto3.client(
+    "bedrock-agentcore",
+    region_name="us-east-1"
+)
+
+# Start a Code Interpreter session
+session_response = client.start_code_interpreter_session(
+    codeInterpreterIdentifier="aws.codeinterpreter.v1",
+    name="my-code-session",
+    sessionTimeoutSeconds=900
+)
+session_id = session_response["sessionId"]
+
+print(f"Started session: {session_id}\n\n")
+
+try:
+    # Execute code in the session
+    execute_response = client.invoke_code_interpreter(
+        codeInterpreterIdentifier="aws.codeinterpreter.v1",
+        sessionId=session_id,
+        name="executeCode",
+        arguments={
+            "language": "python",
+            "code": code_to_execute
+        }
+    )
+
+    # Extract and print the text output from the stream
+    for event in execute_response['stream']:
+        if 'result' in event:
+            result = event['result']
+            if 'content' in result:
+                for content_item in result['content']:
+                    if content_item['type'] == 'text':
+                        print(content_item['text'])
+
+finally:
+    # Stop the session when done
+    client.stop_code_interpreter_session(
+        codeInterpreterIdentifier="aws.codeinterpreter.v1",
+        sessionId=session_id
+    )
+    print(f"\n\nStopped session: {session_id}")</textarea>
+                            </div>
+
+                            <div class="execute-section">
+                                <button class="execute-btn" id="execute-btn-code">
+                                    <i class="fas fa-play"></i>
+                                    <span>Execute Code</span>
+                                </button>
+                                <button class="reset-btn" id="reset-btn">
+                                    <i class="fas fa-redo me-2"></i>Reset Session
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Scenario 2: File Management (Placeholder) -->
+                        <div class="scenario-content coming-soon-overlay" id="scenario-file-management">
+                            <div class="scenario-description">
+                                <h5><i class="fas fa-lightbulb me-2"></i>Scenario Description</h5>
+                                <p class="mb-0">Manage files using AgentCore SDK, including upload, download, and list operations.</p>
+                            </div>
+
+                            <div class="code-section">
+                                <div class="code-section-header">
+                                    <h6><i class="fas fa-file-code me-2"></i>Example Code</h6>
+                                    <span class="code-label">Python + AgentCore SDK</span>
+                                </div>
+                                <textarea id="code-editor-files" class="form-control"># File management example - Coming Soon</textarea>
+                            </div>
+                        </div>
+
+                        <!-- Scenario 3: Shell Command (Placeholder) -->
+                        <div class="scenario-content coming-soon-overlay" id="scenario-shell-command">
+                            <div class="scenario-description">
+                                <h5><i class="fas fa-lightbulb me-2"></i>Scenario Description</h5>
+                                <p class="mb-0">Execute shell commands using AgentCore SDK for system automation.</p>
+                            </div>
+
+                            <div class="code-section">
+                                <div class="code-section-header">
+                                    <h6><i class="fas fa-file-code me-2"></i>Example Code</h6>
+                                    <span class="code-label">Python + AgentCore SDK</span>
+                                </div>
+                                <textarea id="code-editor-shell" class="form-control"># Shell command example - Coming Soon</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Panel: Execution Results -->
+                    <div class="right-panel">
+                        <div class="panel-header">
+                            <i class="fas fa-terminal me-2"></i>Execution Results
+                        </div>
+
+                        <div class="output-section">
+                            <div class="output-header">
+                                <h6><i class="fas fa-chart-line me-2"></i>Output</h6>
+                                <span class="session-badge" id="session-status">Waiting</span>
+                            </div>
+
+                            <div class="output-container" id="code-output">
+                                <div class="output-placeholder">
+                                    <i class="fas fa-rocket"></i>
+                                    <div>Click "Execute Code" to see results</div>
+                                </div>
+                            </div>
+
+                            <div class="execution-log">
+                                <h6><i class="fas fa-list me-2"></i>Execution Log</h6>
+                                <div id="event-log"></div>
                             </div>
                         </div>
                     </div>
@@ -194,52 +533,104 @@ print(f"\nPrimes: {primes}")
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize CodeMirror
-            const codeEditor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+            // Initialize CodeMirror editors for each scenario
+            const codeEditorExecution = CodeMirror.fromTextArea(document.getElementById('code-editor-execution'), {
                 mode: 'python',
                 theme: 'monokai',
                 lineNumbers: true,
                 indentUnit: 4,
                 autoCloseBrackets: true,
-                matchBrackets: true
+                matchBrackets: true,
+                lineWrapping: true
+            });
+
+            const codeEditorFiles = CodeMirror.fromTextArea(document.getElementById('code-editor-files'), {
+                mode: 'python',
+                theme: 'monokai',
+                lineNumbers: true,
+                indentUnit: 4,
+                readOnly: true
+            });
+
+            const codeEditorShell = CodeMirror.fromTextArea(document.getElementById('code-editor-shell'), {
+                mode: 'python',
+                theme: 'monokai',
+                lineNumbers: true,
+                indentUnit: 4,
+                readOnly: true
             });
 
             // Get elements
-            const executeBtn = document.getElementById('execute-btn');
+            const executeBtn = document.getElementById('execute-btn-code');
             const resetBtn = document.getElementById('reset-btn');
             const codeOutput = document.getElementById('code-output');
             const eventLog = document.getElementById('event-log');
-            const sandboxStatus = document.getElementById('sandbox-status');
+            const sessionStatus = document.getElementById('session-status');
 
             let currentSessionId = null;
+
+            // Scenario tab switching
+            const scenarioTabs = document.querySelectorAll('.scenario-tab');
+            const scenarioContents = document.querySelectorAll('.scenario-content');
+
+            scenarioTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const scenario = this.getAttribute('data-scenario');
+
+                    // Don't switch if it's a coming soon scenario
+                    if (this.querySelector('.badge')) {
+                        return;
+                    }
+
+                    // Update active tab
+                    scenarioTabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+
+                    // Update active content
+                    scenarioContents.forEach(c => c.classList.remove('active'));
+                    document.getElementById(`scenario-${scenario}`).classList.add('active');
+
+                    // Refresh CodeMirror when switching tabs
+                    setTimeout(() => {
+                        if (scenario === 'code-execution') {
+                            codeEditorExecution.refresh();
+                        } else if (scenario === 'file-management') {
+                            codeEditorFiles.refresh();
+                        } else if (scenario === 'shell-command') {
+                            codeEditorShell.refresh();
+                        }
+                    }, 100);
+                });
+            });
 
             // Function to add event to log with timestamp
             function logEvent(message, type = 'info') {
                 const now = new Date();
                 const timestamp = now.toLocaleTimeString();
-                const eventClass = type === 'error' ? 'text-danger' :
-                                   type === 'success' ? 'text-success' :
-                                   type === 'warning' ? 'text-warning' : 'text-info';
 
                 const eventElement = document.createElement('div');
-                eventElement.className = eventClass;
-                eventElement.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+                eventElement.className = `log-entry ${type}`;
+                eventElement.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
                 eventLog.appendChild(eventElement);
                 eventLog.scrollTop = eventLog.scrollHeight;
             }
 
             // Execute code function
             executeBtn.addEventListener('click', async function() {
-                const code = codeEditor.getValue();
+                const code = codeEditorExecution.getValue();
                 if (!code.trim()) {
-                    codeOutput.textContent = 'Please enter some code to execute.';
+                    codeOutput.innerHTML = '<div class="output-placeholder"><i class="fas fa-exclamation-circle"></i><div>Please enter code</div></div>';
                     return;
                 }
 
                 // Show loading state
                 executeBtn.disabled = true;
-                executeBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Executing...';
-                codeOutput.textContent = 'Executing code...';
+                executeBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span><span>Executing...</span>';
+                codeOutput.innerHTML = '<div class="output-placeholder"><i class="fas fa-spinner fa-spin"></i><div>Executing code...</div></div>';
+                sessionStatus.textContent = 'Executing...';
+                sessionStatus.className = 'session-badge';
+                sessionStatus.style.background = '#fff3cd';
+                sessionStatus.style.color = '#856404';
                 logEvent('Starting code execution with AWS Bedrock AgentCore...', 'info');
 
                 try {
@@ -254,41 +645,52 @@ print(f"\nPrimes: {primes}")
                     const result = await response.json();
 
                     if (result.success) {
-                        logEvent('Code execution completed successfully', 'success');
+                        logEvent('✓ Code execution completed successfully', 'success');
 
                         // Display the output from AgentCore
                         if (result.output) {
-                            let formattedOutput = '<div class="execution-results">';
-                            formattedOutput += '<div class="result-section">';
-                            formattedOutput += '<h6 class="text-success">AgentCore Output:</h6>';
-                            formattedOutput += '<pre class="p-2 bg-light border rounded">';
-                            formattedOutput += result.output.replace(/\n/g, '<br>');
-                            formattedOutput += '</pre></div>';
-                            formattedOutput += '</div>';
-                            codeOutput.innerHTML = formattedOutput;
+                            // Format output with syntax highlighting for better readability
+                            const formattedOutput = result.output
+                                .replace(/&/g, '&amp;')
+                                .replace(/</g, '&lt;')
+                                .replace(/>/g, '&gt;');
+                            codeOutput.textContent = formattedOutput;
                         } else {
-                            codeOutput.textContent = 'No output returned from AgentCore';
+                            codeOutput.innerHTML = '<div class="output-placeholder" style="color: #ffc107;"><i class="fas fa-info-circle"></i><div>No output returned</div></div>';
                         }
 
                         currentSessionId = result.session_id;
-                        sandboxStatus.textContent = `Session ID: ${currentSessionId}`;
-                        logEvent(`Results displayed from session: ${currentSessionId}`, 'info');
+                        sessionStatus.textContent = `Session: ${currentSessionId.substring(0, 8)}...`;
+                        sessionStatus.style.background = '#d1ecf1';
+                        sessionStatus.style.color = '#0c5460';
+                        logEvent(`✓ Session ID: ${currentSessionId}`, 'info');
                     } else {
-                        codeOutput.textContent = `Error: ${result.error}`;
-                        logEvent(`Execution error: ${result.error}`, 'error');
+                        codeOutput.innerHTML = `<div style="color: #f5576c;"><i class="fas fa-exclamation-triangle"></i> Error:\n\n${result.error}</div>`;
+                        sessionStatus.textContent = 'Failed';
+                        sessionStatus.style.background = '#f8d7da';
+                        sessionStatus.style.color = '#721c24';
+                        logEvent(`✗ Execution error: ${result.error}`, 'error');
                     }
                 } catch (error) {
-                    codeOutput.textContent = `Error: ${error.message}`;
-                    logEvent(`Network error: ${error.message}`, 'error');
+                    codeOutput.innerHTML = `<div style="color: #f5576c;"><i class="fas fa-exclamation-triangle"></i> Network Error:\n\n${error.message}</div>`;
+                    sessionStatus.textContent = 'Network Error';
+                    sessionStatus.style.background = '#f8d7da';
+                    sessionStatus.style.color = '#721c24';
+                    logEvent(`✗ Network error: ${error.message}`, 'error');
                 } finally {
                     // Reset button state
                     executeBtn.disabled = false;
-                    executeBtn.textContent = 'Execute Code';
+                    executeBtn.innerHTML = '<i class="fas fa-play"></i><span>Execute Code</span>';
                 }
             });
 
             // Reset sandbox function
             resetBtn.addEventListener('click', async function() {
+                if (!currentSessionId) {
+                    logEvent('⚠ No active session to reset', 'warning');
+                    return;
+                }
+
                 // Show loading state
                 resetBtn.disabled = true;
                 resetBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Resetting...';
@@ -307,28 +709,33 @@ print(f"\nPrimes: {primes}")
 
                     if (result.success) {
                         currentSessionId = null;
-                        sandboxStatus.textContent = 'Session ID: Reset completed';
-                        codeOutput.innerHTML = '<div class="alert alert-success">AgentCore session reset successfully. Ready for new code execution.</div>';
-                        logEvent('Session terminated and reset completed', 'success');
+                        sessionStatus.textContent = 'Waiting';
+                        sessionStatus.style.background = '#e7f3ff';
+                        sessionStatus.style.color = '#0066cc';
+                        codeOutput.innerHTML = '<div class="output-placeholder"><i class="fas fa-check-circle" style="color: #28a745;"></i><div style="color: #28a745;">Session Reset</div><div style="color: #6c757d; font-size: 0.9rem; margin-top: 10px;">Ready for new execution</div></div>';
+                        logEvent('✓ Session terminated and reset completed', 'success');
                         // Clear event log when resetting session
                         eventLog.innerHTML = '';
-                        logEvent('AgentCore session ready for new execution', 'info');
+                        logEvent('✓ AgentCore ready for new execution', 'info');
                     } else {
-                        codeOutput.innerHTML = `<div class="alert alert-danger">Error resetting session: ${result.error}</div>`;
-                        logEvent(`Failed to reset session: ${result.error}`, 'error');
+                        logEvent(`✗ Failed to reset session: ${result.error}`, 'error');
                     }
                 } catch (error) {
-                    codeOutput.textContent = `Error: ${error.message}`;
-                    logEvent(`Network error during reset: ${error.message}`, 'error');
+                    logEvent(`✗ Network error during reset: ${error.message}`, 'error');
                 } finally {
                     // Reset button state
                     resetBtn.disabled = false;
-                    resetBtn.textContent = 'Reset Sandbox';
+                    resetBtn.innerHTML = '<i class="fas fa-redo me-2"></i>Reset Session';
                 }
             });
 
             // Initialize with ready state
-            logEvent('AWS Bedrock AgentCore Code Interpreter ready', 'info');
+            logEvent('✓ AWS Bedrock AgentCore Code Interpreter ready', 'success');
+
+            // Refresh CodeMirror after a short delay to ensure proper rendering
+            setTimeout(() => {
+                codeEditorExecution.refresh();
+            }, 100);
         });
     </script>
     <script src="/static/js/script.js"></script>
