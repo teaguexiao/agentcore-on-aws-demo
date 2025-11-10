@@ -19,6 +19,8 @@ from pydantic import BaseModel
 import time
 import httpx
 
+# Load environment variables BEFORE importing modules that depend on them
+load_dotenv()
 
 # Import computer use functions
 # COMMENTED OUT: sandbox_computer_use.py module is missing
@@ -36,15 +38,11 @@ from agentcore_browser_tool import (
 # Import AgentCore code interpreter functions
 from agentcore_code_interpreter import (
     execute_agentcore_code, reset_agentcore_sessions, get_active_sessions,
-    init_agentcore_code_interpreter_vars
+    execute_file_management_demo, execute_shell_command_demo, init_agentcore_code_interpreter_vars
 )
 
 # Import AgentCore memory API
 from agentcore_memory_api import memory_api
-
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
 class WebSocketLogHandler(logging.Handler):
@@ -605,6 +603,40 @@ async def reset_agentcore_session_endpoint():
         return JSONResponse({
             "success": True,
             "message": result["message"]
+        })
+    else:
+        return JSONResponse({
+            "success": False,
+            "error": result["error"]
+        }, status_code=500)
+
+@app.post("/api/agentcore/file-management")
+async def execute_file_management_demo_endpoint():
+    """Execute file management demonstration using AWS Bedrock AgentCore"""
+    result = await execute_file_management_demo()
+
+    if result["success"]:
+        return JSONResponse({
+            "success": True,
+            "output": result["output"],
+            "session_id": result["session_id"]
+        })
+    else:
+        return JSONResponse({
+            "success": False,
+            "error": result["error"]
+        }, status_code=500)
+
+@app.post("/api/agentcore/shell-command")
+async def execute_shell_command_demo_endpoint():
+    """Execute shell command demonstration using AWS Bedrock AgentCore"""
+    result = await execute_shell_command_demo()
+
+    if result["success"]:
+        return JSONResponse({
+            "success": True,
+            "output": result["output"],
+            "session_id": result["session_id"]
         })
     else:
         return JSONResponse({

@@ -354,6 +354,102 @@
             pointer-events: none;
             z-index: 10;
         }
+
+        /* SDK Info Block */
+        .sdk-info-block {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+
+        .sdk-info-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .sdk-info-header h6 {
+            margin: 0;
+            color: #667eea;
+            font-weight: 700;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sdk-info-header .info-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .sdk-info-description {
+            background: white;
+            border-left: 4px solid #28a745;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #495057;
+            line-height: 1.6;
+        }
+
+        .sdk-info-description strong {
+            color: #28a745;
+        }
+
+        .sdk-code-display {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre;
+            border: 1px solid #667eea;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .sdk-code-display .comment {
+            color: #6a9955;
+        }
+
+        .sdk-code-display .keyword {
+            color: #569cd6;
+        }
+
+        .sdk-code-display .string {
+            color: #ce9178;
+        }
+
+        .sdk-code-display .function {
+            color: #dcdcaa;
+        }
+
+        .sdk-code-display .number {
+            color: #b5cea8;
+        }
+
+        .separator-line {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #667eea, transparent);
+            margin: 20px 0;
+            flex-shrink: 0;
+        }
     </style>
 </head>
 <body>
@@ -380,11 +476,9 @@
                             </button>
                             <button class="scenario-tab" data-scenario="file-management">
                                 <i class="fas fa-folder me-2"></i>File Management
-                                <span class="badge bg-secondary">Soon</span>
                             </button>
                             <button class="scenario-tab" data-scenario="shell-command">
                                 <i class="fas fa-terminal me-2"></i>Shell Command
-                                <span class="badge bg-secondary">Soon</span>
                             </button>
                         </div>
 
@@ -392,66 +486,134 @@
                         <div class="scenario-content active" id="scenario-code-execution">
                             <div class="scenario-description">
                                 <h5><i class="fas fa-lightbulb me-2"></i>Scenario Description</h5>
-                                <p class="mb-0">Execute Python code using AgentCore SDK. Perfect for data analysis, ML tasks, and more. Get started with just a few lines!</p>
+                                <p class="mb-0">Execute Python code in a secure AWS sandbox. Perfect for data analysis, calculations, visualizations, and more!</p>
                             </div>
 
-                            <div class="code-section">
-                                <div class="code-section-header">
-                                    <h6><i class="fas fa-file-code me-2"></i>Example Code</h6>
-                                    <span class="code-label">Python + AgentCore SDK</span>
+                            <!-- SDK Usage Information Block -->
+                            <div class="sdk-info-block">
+                                <div class="sdk-info-header">
+                                    <h6>
+                                        <i class="fas fa-book-open"></i>
+                                        AgentCore SDK Usage (Application Side)
+                                    </h6>
+                                    <span class="info-badge">Reference</span>
                                 </div>
-                                <textarea id="code-editor-execution" class="form-control">import boto3
-import json
+                                <div class="sdk-info-description">
+                                    <strong>📌 Important:</strong> This code runs in <strong>YOUR application</strong> with AWS credentials from your <code>.env</code> file.
+                                    It creates a Code Interpreter session and sends user code to the AWS AgentCore sandbox for execution.
+                                    The sandbox code (shown below) runs in an <strong>isolated environment WITHOUT credentials</strong>.
+                                </div>
+                                <div class="sdk-code-display">import boto3
 
-# Code to execute
-code_to_execute = """
-print("Hello World!!!")
-"""
+<span class="comment"># Code to execute in the AgentCore sandbox</span>
+code_to_execute = <span class="string">"""
+print("Hello from AgentCore!")
+"""</span>
 
-# Initialize the bedrock-agentcore client
+<span class="comment"># Initialize the bedrock-agentcore client (requires AWS credentials)</span>
 client = boto3.client(
-    "bedrock-agentcore",
-    region_name="us-east-1"
+    <span class="string">"bedrock-agentcore"</span>,
+    region_name=<span class="string">"us-west-2"</span>,
+    endpoint_url=<span class="string">"https://bedrock-agentcore.us-west-2.amazonaws.com"</span>
 )
 
-# Start a Code Interpreter session
+<span class="comment"># Start a Code Interpreter session</span>
 session_response = client.start_code_interpreter_session(
-    codeInterpreterIdentifier="aws.codeinterpreter.v1",
-    name="my-code-session",
-    sessionTimeoutSeconds=900
+    codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+    name=<span class="string">"my-code-session"</span>,
+    sessionTimeoutSeconds=<span class="number">900</span>
 )
-session_id = session_response["sessionId"]
+session_id = session_response[<span class="string">"sessionId"</span>]
 
-print(f"Started session: {session_id}\n\n")
+print(f<span class="string">"Started session: {session_id}"</span>)
 
-try:
-    # Execute code in the session
+<span class="keyword">try</span>:
+    <span class="comment"># Execute code in the session</span>
     execute_response = client.invoke_code_interpreter(
-        codeInterpreterIdentifier="aws.codeinterpreter.v1",
+        codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
         sessionId=session_id,
-        name="executeCode",
+        name=<span class="string">"executeCode"</span>,
         arguments={
-            "language": "python",
-            "code": code_to_execute
+            <span class="string">"language"</span>: <span class="string">"python"</span>,
+            <span class="string">"code"</span>: code_to_execute
         }
     )
 
-    # Extract and print the text output from the stream
-    for event in execute_response['stream']:
-        if 'result' in event:
-            result = event['result']
-            if 'content' in result:
-                for content_item in result['content']:
-                    if content_item['type'] == 'text':
-                        print(content_item['text'])
+    <span class="comment"># Extract and print the text output from the stream</span>
+    <span class="keyword">for</span> event <span class="keyword">in</span> execute_response[<span class="string">'stream'</span>]:
+        <span class="keyword">if</span> <span class="string">'result'</span> <span class="keyword">in</span> event:
+            result = event[<span class="string">'result'</span>]
+            <span class="keyword">if</span> <span class="string">'content'</span> <span class="keyword">in</span> result:
+                <span class="keyword">for</span> content_item <span class="keyword">in</span> result[<span class="string">'content'</span>]:
+                    <span class="keyword">if</span> content_item[<span class="string">'type'</span>] == <span class="string">'text'</span>:
+                        print(content_item[<span class="string">'text'</span>])
 
-finally:
-    # Stop the session when done
+<span class="keyword">finally</span>:
+    <span class="comment"># Stop the session when done</span>
     client.stop_code_interpreter_session(
-        codeInterpreterIdentifier="aws.codeinterpreter.v1",
+        codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
         sessionId=session_id
     )
-    print(f"\n\nStopped session: {session_id}")</textarea>
+    print(f<span class="string">"Stopped session: {session_id}"</span>)</div>
+                            </div>
+
+                            <!-- Separator -->
+                            <div class="separator-line"></div>
+
+                            <div class="code-section">
+                                <div class="code-section-header">
+                                    <h6><i class="fas fa-file-code me-2"></i>Code to Execute (Sandbox Side)</h6>
+                                    <span class="code-label">Python - Runs in Isolated Sandbox</span>
+                                </div>
+                                <textarea id="code-editor-execution" class="form-control">import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+
+# Create sample sales data
+print("📊 Generating Sample Sales Data...\n")
+
+dates = pd.date_range(start='2024-01-01', end='2024-12-31', freq='D')
+np.random.seed(42)
+
+# Generate realistic sales data with trend and seasonality
+trend = np.linspace(1000, 1500, len(dates))
+seasonality = 200 * np.sin(np.arange(len(dates)) * 2 * np.pi / 365)
+noise = np.random.normal(0, 100, len(dates))
+sales = trend + seasonality + noise
+
+df = pd.DataFrame({
+    'Date': dates,
+    'Sales': sales.astype(int),
+    'Region': np.random.choice(['North', 'South', 'East', 'West'], len(dates)),
+    'Product': np.random.choice(['Product A', 'Product B', 'Product C'], len(dates))
+})
+
+# Display summary statistics
+print("📈 Sales Data Summary:")
+print(f"Total Records: {len(df)}")
+print(f"Date Range: {df['Date'].min().date()} to {df['Date'].max().date()}")
+print(f"\nSales Statistics:")
+print(df['Sales'].describe())
+
+# Calculate monthly totals
+df['Month'] = df['Date'].dt.to_period('M')
+monthly_sales = df.groupby('Month')['Sales'].sum()
+
+print(f"\n💰 Top 5 Months by Sales:")
+print(monthly_sales.nlargest(5))
+
+# Regional analysis
+print(f"\n🌍 Sales by Region:")
+regional_sales = df.groupby('Region')['Sales'].agg(['sum', 'mean', 'count'])
+print(regional_sales)
+
+# Product analysis
+print(f"\n📦 Sales by Product:")
+product_sales = df.groupby('Product')['Sales'].agg(['sum', 'mean', 'count'])
+print(product_sales)
+
+print("\n✅ Analysis Complete!")</textarea>
                             </div>
 
                             <div class="execute-section">
@@ -465,35 +627,218 @@ finally:
                             </div>
                         </div>
 
-                        <!-- Scenario 2: File Management (Placeholder) -->
-                        <div class="scenario-content coming-soon-overlay" id="scenario-file-management">
+                        <!-- Scenario 2: File Management -->
+                        <div class="scenario-content" id="scenario-file-management">
                             <div class="scenario-description">
                                 <h5><i class="fas fa-lightbulb me-2"></i>Scenario Description</h5>
-                                <p class="mb-0">Manage files using AgentCore SDK, including upload, download, and list operations.</p>
+                                <p class="mb-0">Manage files in the AWS sandbox using AgentCore SDK. Create, list, and delete files for data processing workflows!</p>
                             </div>
 
-                            <div class="code-section">
-                                <div class="code-section-header">
-                                    <h6><i class="fas fa-file-code me-2"></i>Example Code</h6>
-                                    <span class="code-label">Python + AgentCore SDK</span>
+                            <!-- SDK Usage Information Block -->
+                            <div class="sdk-info-block">
+                                <div class="sdk-info-header">
+                                    <h6>
+                                        <i class="fas fa-book-open"></i>
+                                        AgentCore SDK Usage (Application Side)
+                                    </h6>
+                                    <span class="info-badge">Reference</span>
                                 </div>
-                                <textarea id="code-editor-files" class="form-control"># File management example - Coming Soon</textarea>
+                                <div class="sdk-info-description">
+                                    <strong>📌 Important:</strong> This code runs in <strong>YOUR application</strong> with AWS credentials from your <code>.env</code> file.
+                                    It demonstrates how to manage files in the AgentCore sandbox using writeFiles, listFiles, and removeFiles operations.
+                                </div>
+                                <div class="sdk-code-display">import boto3
+import json
+
+<span class="comment"># Sample data files to create in the sandbox</span>
+data_file_content = <span class="string">"""Date,Sales,Region
+2024-01-01,1500,North
+2024-01-02,1800,South
+2024-01-03,1200,East"""</span>
+
+stats_script_content = <span class="string">"""import pandas as pd
+
+df = pd.read_csv('data.csv')
+print('Sales Summary:')
+print(df.describe())"""</span>
+
+files_to_create = [
+    {
+        <span class="string">"path"</span>: <span class="string">"data.csv"</span>,
+        <span class="string">"text"</span>: data_file_content
+    },
+    {
+        <span class="string">"path"</span>: <span class="string">"stats.py"</span>,
+        <span class="string">"text"</span>: stats_script_content
+    }
+]
+
+<span class="comment"># Initialize the bedrock-agentcore client</span>
+client = boto3.client(
+    <span class="string">"bedrock-agentcore"</span>,
+    region_name=<span class="string">"us-west-2"</span>,
+    endpoint_url=<span class="string">"https://bedrock-agentcore.us-west-2.amazonaws.com"</span>
+)
+
+<span class="comment"># Start a Code Interpreter session</span>
+session_response = client.start_code_interpreter_session(
+    codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+    name=<span class="string">"file-mgmt-session"</span>,
+    sessionTimeoutSeconds=<span class="number">900</span>
+)
+session_id = session_response[<span class="string">"sessionId"</span>]
+
+<span class="keyword">try</span>:
+    <span class="comment"># 1. Write files to the sandbox</span>
+    write_response = client.invoke_code_interpreter(
+        codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+        sessionId=session_id,
+        name=<span class="string">"writeFiles"</span>,
+        arguments={<span class="string">"content"</span>: files_to_create}
+    )
+    print(<span class="string">"✅ Files written successfully"</span>)
+
+    <span class="comment"># 2. List files in the sandbox</span>
+    list_response = client.invoke_code_interpreter(
+        codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+        sessionId=session_id,
+        name=<span class="string">"listFiles"</span>,
+        arguments={<span class="string">"path"</span>: <span class="string">""</span>}
+    )
+
+    <span class="keyword">for</span> event <span class="keyword">in</span> list_response[<span class="string">'stream'</span>]:
+        <span class="keyword">if</span> <span class="string">'result'</span> <span class="keyword">in</span> event:
+            result = event[<span class="string">'result'</span>]
+            <span class="keyword">if</span> <span class="string">'content'</span> <span class="keyword">in</span> result:
+                <span class="keyword">for</span> item <span class="keyword">in</span> result[<span class="string">'content'</span>]:
+                    <span class="keyword">if</span> item[<span class="string">'type'</span>] == <span class="string">'text'</span>:
+                        print(item[<span class="string">'text'</span>])
+
+    <span class="comment"># 3. Delete a file</span>
+    delete_response = client.invoke_code_interpreter(
+        codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+        sessionId=session_id,
+        name=<span class="string">"removeFiles"</span>,
+        arguments={<span class="string">"paths"</span>: [<span class="string">"stats.py"</span>]}
+    )
+    print(<span class="string">"🗑️  File deleted successfully"</span>)
+
+<span class="keyword">finally</span>:
+    <span class="comment"># Stop the session</span>
+    client.stop_code_interpreter_session(
+        codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+        sessionId=session_id
+    )</div>
+                            </div>
+
+                            <div class="execute-section">
+                                <button class="execute-btn" id="execute-btn-files">
+                                    <i class="fas fa-play"></i>
+                                    <span>Run Demo</span>
+                                </button>
+                                <button class="reset-btn" id="reset-btn-files">
+                                    <i class="fas fa-redo me-2"></i>Reset Session
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Scenario 3: Shell Command (Placeholder) -->
-                        <div class="scenario-content coming-soon-overlay" id="scenario-shell-command">
+                        <!-- Scenario 3: Shell Command -->
+                        <div class="scenario-content" id="scenario-shell-command">
                             <div class="scenario-description">
                                 <h5><i class="fas fa-lightbulb me-2"></i>Scenario Description</h5>
-                                <p class="mb-0">Execute shell commands using AgentCore SDK for system automation.</p>
+                                <p class="mb-0">Execute shell commands in the AWS sandbox using AgentCore SDK. Collect system information, run automation scripts, and interact with the Linux environment!</p>
                             </div>
 
-                            <div class="code-section">
-                                <div class="code-section-header">
-                                    <h6><i class="fas fa-file-code me-2"></i>Example Code</h6>
-                                    <span class="code-label">Python + AgentCore SDK</span>
+                            <!-- SDK Usage Information Block -->
+                            <div class="sdk-info-block">
+                                <div class="sdk-info-header">
+                                    <h6>
+                                        <i class="fas fa-book-open"></i>
+                                        AgentCore SDK Usage (Application Side)
+                                    </h6>
+                                    <span class="info-badge">Reference</span>
                                 </div>
-                                <textarea id="code-editor-shell" class="form-control"># Shell command example - Coming Soon</textarea>
+                                <div class="sdk-info-description">
+                                    <strong>📌 Important:</strong> This code runs in <strong>YOUR application</strong> with AWS credentials from your <code>.env</code> file.
+                                    It demonstrates how to execute shell commands in the AgentCore sandbox using the executeCommand operation.
+                                </div>
+                                <div class="sdk-code-display">import boto3
+
+<span class="comment"># Initialize the bedrock-agentcore client</span>
+client = boto3.client(
+    <span class="string">"bedrock-agentcore"</span>,
+    region_name=<span class="string">"us-west-2"</span>,
+    endpoint_url=<span class="string">"https://bedrock-agentcore.us-west-2.amazonaws.com"</span>
+)
+
+<span class="comment"># Start a Code Interpreter session</span>
+session_response = client.start_code_interpreter_session(
+    codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+    name=<span class="string">"shell-command-session"</span>,
+    sessionTimeoutSeconds=<span class="number">900</span>
+)
+session_id = session_response[<span class="string">"sessionId"</span>]
+
+<span class="keyword">try</span>:
+    <span class="comment"># 1. Get system information</span>
+    response = client.invoke_code_interpreter(
+        codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+        sessionId=session_id,
+        name=<span class="string">"executeCommand"</span>,
+        arguments={<span class="string">"command"</span>: <span class="string">"uname -a"</span>}
+    )
+
+    <span class="keyword">for</span> event <span class="keyword">in</span> response[<span class="string">'stream'</span>]:
+        <span class="keyword">if</span> <span class="string">'result'</span> <span class="keyword">in</span> event:
+            result = event[<span class="string">'result'</span>]
+            <span class="keyword">if</span> <span class="string">'content'</span> <span class="keyword">in</span> result:
+                <span class="keyword">for</span> item <span class="keyword">in</span> result[<span class="string">'content'</span>]:
+                    <span class="keyword">if</span> item[<span class="string">'type'</span>] == <span class="string">'text'</span>:
+                        print(<span class="string">"System:"</span>, item[<span class="string">'text'</span>])
+
+    <span class="comment"># 2. Check CPU information</span>
+    response = client.invoke_code_interpreter(
+        codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+        sessionId=session_id,
+        name=<span class="string">"executeCommand"</span>,
+        arguments={<span class="string">"command"</span>: <span class="string">"nproc"</span>}
+    )
+    print(<span class="string">"✅ CPU cores checked"</span>)
+
+    <span class="comment"># 3. Check memory usage</span>
+    response = client.invoke_code_interpreter(
+        codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+        sessionId=session_id,
+        name=<span class="string">"executeCommand"</span>,
+        arguments={<span class="string">"command"</span>: <span class="string">"free -h"</span>}
+    )
+    print(<span class="string">"✅ Memory info collected"</span>)
+
+    <span class="comment"># 4. Check disk usage</span>
+    response = client.invoke_code_interpreter(
+        codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+        sessionId=session_id,
+        name=<span class="string">"executeCommand"</span>,
+        arguments={<span class="string">"command"</span>: <span class="string">"df -h"</span>}
+    )
+    print(<span class="string">"✅ Disk usage analyzed"</span>)
+
+<span class="keyword">finally</span>:
+    <span class="comment"># Stop the session</span>
+    client.stop_code_interpreter_session(
+        codeInterpreterIdentifier=<span class="string">"aws.codeinterpreter.v1"</span>,
+        sessionId=session_id
+    )</div>
+                            </div>
+
+                            <div class="execute-section">
+                                <button class="execute-btn" id="execute-btn-shell">
+                                    <i class="fas fa-play"></i>
+                                    <span>Run Demo</span>
+                                </button>
+                                <button class="reset-btn" id="reset-btn-shell">
+                                    <i class="fas fa-redo me-2"></i>Reset Session
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -544,22 +889,6 @@ finally:
                 lineWrapping: true
             });
 
-            const codeEditorFiles = CodeMirror.fromTextArea(document.getElementById('code-editor-files'), {
-                mode: 'python',
-                theme: 'monokai',
-                lineNumbers: true,
-                indentUnit: 4,
-                readOnly: true
-            });
-
-            const codeEditorShell = CodeMirror.fromTextArea(document.getElementById('code-editor-shell'), {
-                mode: 'python',
-                theme: 'monokai',
-                lineNumbers: true,
-                indentUnit: 4,
-                readOnly: true
-            });
-
             // Get elements
             const executeBtn = document.getElementById('execute-btn-code');
             const resetBtn = document.getElementById('reset-btn');
@@ -594,10 +923,6 @@ finally:
                     setTimeout(() => {
                         if (scenario === 'code-execution') {
                             codeEditorExecution.refresh();
-                        } else if (scenario === 'file-management') {
-                            codeEditorFiles.refresh();
-                        } else if (scenario === 'shell-command') {
-                            codeEditorShell.refresh();
                         }
                     }, 100);
                 });
@@ -728,6 +1053,230 @@ finally:
                     resetBtn.innerHTML = '<i class="fas fa-redo me-2"></i>Reset Session';
                 }
             });
+
+            // File Management Demo execution
+            const executeBtnFiles = document.getElementById('execute-btn-files');
+            const resetBtnFiles = document.getElementById('reset-btn-files');
+
+            if (executeBtnFiles) {
+                executeBtnFiles.addEventListener('click', async function() {
+                    // Show loading state
+                    executeBtnFiles.disabled = true;
+                    executeBtnFiles.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span><span>Running Demo...</span>';
+                    codeOutput.innerHTML = '<div class="output-placeholder"><i class="fas fa-spinner fa-spin"></i><div>Running file management demo...</div></div>';
+                    sessionStatus.textContent = 'Running...';
+                    sessionStatus.className = 'session-badge';
+                    sessionStatus.style.background = '#fff3cd';
+                    sessionStatus.style.color = '#856404';
+                    logEvent('Starting file management demonstration...', 'info');
+
+                    try {
+                        const response = await fetch('/api/agentcore/file-management', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            logEvent('✓ File management demo completed successfully', 'success');
+
+                            // Display the output
+                            if (result.output) {
+                                const formattedOutput = result.output
+                                    .replace(/&/g, '&amp;')
+                                    .replace(/</g, '&lt;')
+                                    .replace(/>/g, '&gt;');
+                                codeOutput.textContent = formattedOutput;
+                            } else {
+                                codeOutput.innerHTML = '<div class="output-placeholder" style="color: #ffc107;"><i class="fas fa-info-circle"></i><div>No output returned</div></div>';
+                            }
+
+                            currentSessionId = result.session_id;
+                            sessionStatus.textContent = `Session: ${currentSessionId.substring(0, 8)}...`;
+                            sessionStatus.style.background = '#d1ecf1';
+                            sessionStatus.style.color = '#0c5460';
+                            logEvent(`✓ Session ID: ${currentSessionId}`, 'info');
+                        } else {
+                            codeOutput.innerHTML = `<div style="color: #f5576c;"><i class="fas fa-exclamation-triangle"></i> Error:\n\n${result.error}</div>`;
+                            sessionStatus.textContent = 'Failed';
+                            sessionStatus.style.background = '#f8d7da';
+                            sessionStatus.style.color = '#721c24';
+                            logEvent(`✗ Demo error: ${result.error}`, 'error');
+                        }
+                    } catch (error) {
+                        codeOutput.innerHTML = `<div style="color: #f5576c;"><i class="fas fa-exclamation-triangle"></i> Network Error:\n\n${error.message}</div>`;
+                        sessionStatus.textContent = 'Network Error';
+                        sessionStatus.style.background = '#f8d7da';
+                        sessionStatus.style.color = '#721c24';
+                        logEvent(`✗ Network error: ${error.message}`, 'error');
+                    } finally {
+                        // Reset button state
+                        executeBtnFiles.disabled = false;
+                        executeBtnFiles.innerHTML = '<i class="fas fa-play"></i><span>Run Demo</span>';
+                    }
+                });
+            }
+
+            if (resetBtnFiles) {
+                resetBtnFiles.addEventListener('click', async function() {
+                    if (!currentSessionId) {
+                        logEvent('⚠ No active session to reset', 'warning');
+                        return;
+                    }
+
+                    // Show loading state
+                    resetBtnFiles.disabled = true;
+                    resetBtnFiles.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Resetting...';
+                    logEvent('Resetting AgentCore session...', 'info');
+
+                    try {
+                        const response = await fetch('/api/agentcore/reset', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ session_id: currentSessionId })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            currentSessionId = null;
+                            sessionStatus.textContent = 'Waiting';
+                            sessionStatus.style.background = '#e7f3ff';
+                            sessionStatus.style.color = '#0066cc';
+                            codeOutput.innerHTML = '<div class="output-placeholder"><i class="fas fa-check-circle" style="color: #28a745;"></i><div style="color: #28a745;">Session Reset</div><div style="color: #6c757d; font-size: 0.9rem; margin-top: 10px;">Ready for new execution</div></div>';
+                            logEvent('✓ Session terminated and reset completed', 'success');
+                            // Clear event log when resetting session
+                            eventLog.innerHTML = '';
+                            logEvent('✓ AgentCore ready for new execution', 'info');
+                        } else {
+                            logEvent(`✗ Failed to reset session: ${result.error}`, 'error');
+                        }
+                    } catch (error) {
+                        logEvent(`✗ Network error during reset: ${error.message}`, 'error');
+                    } finally {
+                        // Reset button state
+                        resetBtnFiles.disabled = false;
+                        resetBtnFiles.innerHTML = '<i class="fas fa-redo me-2"></i>Reset Session';
+                    }
+                });
+            }
+
+            // Shell Command Demo execution
+            const executeBtnShell = document.getElementById('execute-btn-shell');
+            const resetBtnShell = document.getElementById('reset-btn-shell');
+
+            if (executeBtnShell) {
+                executeBtnShell.addEventListener('click', async function() {
+                    // Show loading state
+                    executeBtnShell.disabled = true;
+                    executeBtnShell.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span><span>Running Demo...</span>';
+                    codeOutput.innerHTML = '<div class="output-placeholder"><i class="fas fa-spinner fa-spin"></i><div>Running shell command demo...</div></div>';
+                    sessionStatus.textContent = 'Running...';
+                    sessionStatus.className = 'session-badge';
+                    sessionStatus.style.background = '#fff3cd';
+                    sessionStatus.style.color = '#856404';
+                    logEvent('Starting shell command demonstration...', 'info');
+
+                    try {
+                        const response = await fetch('/api/agentcore/shell-command', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            logEvent('✓ Shell command demo completed successfully', 'success');
+
+                            // Display the output
+                            if (result.output) {
+                                const formattedOutput = result.output
+                                    .replace(/&/g, '&amp;')
+                                    .replace(/</g, '&lt;')
+                                    .replace(/>/g, '&gt;');
+                                codeOutput.textContent = formattedOutput;
+                            } else {
+                                codeOutput.innerHTML = '<div class="output-placeholder" style="color: #ffc107;"><i class="fas fa-info-circle"></i><div>No output returned</div></div>';
+                            }
+
+                            currentSessionId = result.session_id;
+                            sessionStatus.textContent = `Session: ${currentSessionId.substring(0, 8)}...`;
+                            sessionStatus.style.background = '#d1ecf1';
+                            sessionStatus.style.color = '#0c5460';
+                            logEvent(`✓ Session ID: ${currentSessionId}`, 'info');
+                        } else {
+                            codeOutput.innerHTML = `<div style="color: #f5576c;"><i class="fas fa-exclamation-triangle"></i> Error:\n\n${result.error}</div>`;
+                            sessionStatus.textContent = 'Failed';
+                            sessionStatus.style.background = '#f8d7da';
+                            sessionStatus.style.color = '#721c24';
+                            logEvent(`✗ Demo error: ${result.error}`, 'error');
+                        }
+                    } catch (error) {
+                        codeOutput.innerHTML = `<div style="color: #f5576c;"><i class="fas fa-exclamation-triangle"></i> Network Error:\n\n${error.message}</div>`;
+                        sessionStatus.textContent = 'Network Error';
+                        sessionStatus.style.background = '#f8d7da';
+                        sessionStatus.style.color = '#721c24';
+                        logEvent(`✗ Network error: ${error.message}`, 'error');
+                    } finally {
+                        // Reset button state
+                        executeBtnShell.disabled = false;
+                        executeBtnShell.innerHTML = '<i class="fas fa-play"></i><span>Run Demo</span>';
+                    }
+                });
+            }
+
+            if (resetBtnShell) {
+                resetBtnShell.addEventListener('click', async function() {
+                    if (!currentSessionId) {
+                        logEvent('⚠ No active session to reset', 'warning');
+                        return;
+                    }
+
+                    // Show loading state
+                    resetBtnShell.disabled = true;
+                    resetBtnShell.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Resetting...';
+                    logEvent('Resetting AgentCore session...', 'info');
+
+                    try {
+                        const response = await fetch('/api/agentcore/reset', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ session_id: currentSessionId })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            currentSessionId = null;
+                            sessionStatus.textContent = 'Waiting';
+                            sessionStatus.style.background = '#e7f3ff';
+                            sessionStatus.style.color = '#0066cc';
+                            codeOutput.innerHTML = '<div class="output-placeholder"><i class="fas fa-check-circle" style="color: #28a745;"></i><div style="color: #28a745;">Session Reset</div><div style="color: #6c757d; font-size: 0.9rem; margin-top: 10px;">Ready for new execution</div></div>';
+                            logEvent('✓ Session terminated and reset completed', 'success');
+                            // Clear event log when resetting session
+                            eventLog.innerHTML = '';
+                            logEvent('✓ AgentCore ready for new execution', 'info');
+                        } else {
+                            logEvent(`✗ Failed to reset session: ${result.error}`, 'error');
+                        }
+                    } catch (error) {
+                        logEvent(`✗ Network error during reset: ${error.message}`, 'error');
+                    } finally {
+                        // Reset button state
+                        resetBtnShell.disabled = false;
+                        resetBtnShell.innerHTML = '<i class="fas fa-redo me-2"></i>Reset Session';
+                    }
+                });
+            }
 
             // Initialize with ready state
             logEvent('✓ AWS Bedrock AgentCore Code Interpreter ready', 'success');
