@@ -1,0 +1,16 @@
+[Unit]
+Description=AgentCore on AWS Demo - AI Agent Sandbox Service
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/agentcore-on-aws-demo
+ExecStart=/home/ubuntu/agentcore-on-aws-demo/venv/bin/python /home/ubuntu/agentcore-on-aws-demo/app.py
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+
