@@ -2,12 +2,55 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"="width=device-width, initial-scale=1.0">
     <title>AgentCore Runtime - AgentCore on AWS Demo UI</title>
     <link href="/static/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
+        /* 复用 agentcore-memory 的代码样式 */
+        .code-snippet {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin: 15px 0;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .result-box {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .result-box.success {
+            background-color: #d1e7dd;
+            border-color: #badbcc;
+        }
+        .result-box.error {
+            background-color: #f8d7da;
+            border-color: #f5c2c7;
+        }
+        .runtime-part {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .part-header {
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
         .nav-tabs .nav-link {
             color: #495057;
             font-weight: 500;
@@ -20,46 +63,20 @@
             font-size: 0.65rem;
             margin-left: 5px;
             padding: 0.25em 0.5em;
-            vertical-align: middle;
-            font-weight: normal;
         }
-
-        /* GitHub link styles */
-        .github-link {
-            color: #333;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 6px;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            transition: all 0.2s ease-in-out;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+        .spinner-border.active {
+            display: inline-block;
         }
-
-        .github-link:hover {
-            color: #0d6efd;
-            background-color: #e9ecef;
-            border-color: #0d6efd;
-            text-decoration: none;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        .spinner-border {
+            display: none;
         }
-
-        .github-icon {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
+        .progress-container {
+            margin: 20px 0;
+            display: none;
         }
-
-        .feature-card {
-            transition: transform 0.2s;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
+        .status-badge {
+            font-size: 0.9rem;
+            padding: 0.35em 0.65em;
         }
     </style>
 </head>
@@ -71,123 +88,490 @@
             <div class="col-12 mt-4">
                 <div class="container">
                     <h2 class="text-center mb-4">
-                        <i class="fas fa-server me-2"></i>AgentCore Runtime
+                        <i class="fas fa-server me-2"></i>AgentCore Runtime 演示
                     </h2>
-                    
+
+                    <!-- Runtime 简介 -->
                     <div class="row mb-4">
                         <div class="col-12">
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle me-2"></i>
-                                <strong>AgentCore Runtime</strong> provides a secure, scalable execution environment for AI agents on AWS infrastructure.
+                                <strong>Amazon Bedrock AgentCore Runtime</strong> 是一个安全的、无服务器运行时,专为部署和扩展 AI Agent 和工具而设计。
+                                支持任何框架、模型和协议,使开发者能够以最少的代码更改将本地原型转换为生产就绪的解决方案。
                             </div>
                         </div>
                     </div>
 
-                    <div class="row g-4">
-                        <!-- Runtime Features -->
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-bolt text-warning me-2"></i>High Performance
-                                    </h5>
-                                    <p class="card-text">
-                                        Optimized runtime environment with low-latency execution and efficient resource utilization.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-shield-alt text-success me-2"></i>Secure Isolation
-                                    </h5>
-                                    <p class="card-text">
-                                        Each agent runs in an isolated environment with strict security boundaries and resource limits.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-chart-line text-primary me-2"></i>Auto Scaling
-                                    </h5>
-                                    <p class="card-text">
-                                        Automatically scales based on demand using AWS Fargate and Lambda integration.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-clock text-info me-2"></i>Session Management
-                                    </h5>
-                                    <p class="card-text">
-                                        Intelligent session lifecycle management with automatic cleanup and resource optimization.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-network-wired text-secondary me-2"></i>Network Isolation
-                                    </h5>
-                                    <p class="card-text">
-                                        VPC-based network isolation with configurable security groups and network policies.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="card feature-card h-100">
-                                <div class="card-body">
-                                    <h5 class="card-title">
-                                        <i class="fas fa-database text-danger me-2"></i>State Persistence
-                                    </h5>
-                                    <p class="card-text">
-                                        Optional state persistence using S3 and DynamoDB for long-running agent workflows.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mt-5">
+                    <!-- 架构图 -->
+                    <div class="row mb-4">
                         <div class="col-12">
-                            <div class="card">
-                                <div class="card-header bg-primary text-white">
-                                    <h5 class="mb-0">
-                                        <i class="fas fa-cogs me-2"></i>Runtime Configuration
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <p class="text-muted">
-                                        <i class="fas fa-tools me-2"></i>
-                                        Runtime configuration and monitoring features are coming soon. This will include:
-                                    </p>
-                                    <ul>
-                                        <li>Real-time runtime metrics and monitoring</li>
-                                        <li>Custom runtime environment configuration</li>
-                                        <li>Resource allocation and limits management</li>
-                                        <li>Runtime logs and debugging tools</li>
-                                        <li>Performance optimization recommendations</li>
-                                    </ul>
+                            <div class="runtime-part">
+                                <h5 class="part-header">
+                                    <i class="fas fa-sitemap me-2"></i>架构概览
+                                </h5>
+                                <div class="text-center">
+                                    <img src="/static/images/runtime_overview.png"
+                                         class="img-fluid rounded shadow-sm"
+                                         alt="AgentCore Runtime Architecture"
+                                         style="max-width: 100%; height: auto; border: 1px solid #dee2e6;">
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Demo Tabs -->
+                    <div class="row">
+                        <div class="col-12">
+                            <ul class="nav nav-tabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#direct-code-tab" type="button">
+                                        <i class="fas fa-code me-2"></i>Direct Code Deployment
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#container-tab" type="button">
+                                        <i class="fas fa-docker me-2"></i>Container Deployment
+                                        <span class="badge bg-secondary coming-soon-badge">Coming Soon</span>
+                                    </button>
+                                </li>
+                            </ul>
+
+                            <div class="tab-content mt-3">
+                                <!-- Direct Code Deployment Tab -->
+                                <div class="tab-pane fade show active" id="direct-code-tab">
+
+                                    <!-- Part 1: 前置要求 -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-list-check me-2"></i>Part 1: 前置要求
+                                        </h4>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>配置好 AWS 账户凭证</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>安装 uv 和 Python 3.10+</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>具备适当的 AWS 权限</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>在 Amazon Bedrock 控制台启用相关模型（例如 Anthropic Claude Sonnet 4.0）</li>
+                                        </ul>
+                                    </div>
+
+                                    <!-- Part 2: 设置项目并安装依赖 -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-cog me-2"></i>Part 2: 设置项目并安装依赖
+                                        </h4>
+                                        <p class="text-muted">初始化项目并安装核心依赖包</p>
+
+                                        <div class="code-snippet">
+<pre style="margin: 0;"># 初始化项目
+uv init agentcore_runtime_direct_deploy --python 3.13
+cd agentcore_runtime_direct_deploy
+
+# 添加核心包
+uv add bedrock-agentcore strands-agents</pre>
+                                        </div>
+
+                                        <button class="btn btn-primary" id="btn-step2" onclick="executeStep2()">
+                                            <i class="fas fa-play me-2"></i>执行
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <!-- 执行日志 -->
+                                        <div class="row mb-3" id="log-area-2" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="log-output-2" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="result-box" id="result-2" style="display: none;">
+                                            <div class="alert alert-success">
+                                                <h6>执行结果:</h6>
+                                                <pre class="result-output" style="margin: 0;"></pre>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 3: 创建 Agent 代码 -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-file-code me-2"></i>Part 3: 创建 Agent 代码
+                                        </h4>
+                                        <p class="text-muted">创建 Agent 入口文件 main.py</p>
+
+                                        <div class="code-snippet">
+<pre style="margin: 0;">from bedrock_agentcore import BedrockAgentCoreApp
+from strands import Agent
+
+app = BedrockAgentCoreApp(debug=True)
+agent = Agent()
+
+@app.entrypoint
+def invoke(payload):
+    """Your AI agent function"""
+    user_message = payload.get("prompt", "Hello! How can I help you today?")
+    app.logger.info(f"User message: {user_message}")
+    result = agent(user_message)
+    return {"result": result.message}
+
+if __name__ == "__main__":
+    app.run()</pre>
+                                        </div>
+
+                                        <p class="text-muted small">使用 <code>@app.entrypoint</code> 注解或实现 <code>/invocations POST</code> 和 <code>/ping GET</code> 服务端点</p>
+
+                                        <button class="btn btn-primary" id="btn-step3" onclick="executeStep3()">
+                                            <i class="fas fa-plus me-2"></i>创建 Agent 代码文件
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <!-- 执行日志 -->
+                                        <div class="row mb-3" id="log-area-3" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="log-output-3" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="result-box" id="result-3" style="display: none;">
+                                            <div class="alert alert-success">
+                                                <h6>执行结果:</h6>
+                                                <pre class="result-output" style="margin: 0;"></pre>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 4: 本地测试 (optional) -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-vial me-2"></i>Part 4: 本地测试 (可选)
+                                        </h4>
+                                        <div class="alert alert-secondary">
+                                            <ul class="mb-0">
+                                                <li>确保端口 8080 可用</li>
+                                                <li>启动代理: <code>uv run main.py</code></li>
+                                                <li>在另一个终端测试: 使用 <code>curl</code> 命令向 <code>localhost:8080/invocations</code> 发送 POST 请求</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 5: 部署代码到 AgentCore Runtime -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-cloud-upload-alt me-2"></i>Part 5: 部署代码到 AgentCore Runtime
+                                        </h4>
+
+                                        <!-- 步骤5-1: 创建部署包 -->
+                                        <h6><i class="fas fa-box me-2"></i>步骤 1: 创建部署包</h6>
+                                        <div class="code-snippet">
+<pre style="margin: 0;">uv pip install \
+--python-platform aarch64-manylinux2014 \
+--python-version 3.13 \
+--target=deployment_package \
+--only-binary=:all: \
+-r pyproject.toml
+
+cd deployment_package
+zip -r ../deployment_package.zip .</pre>
+                                        </div>
+
+                                        <button class="btn btn-secondary mb-3" id="btn-step5-package" onclick="executeStep5Package()">
+                                            <i class="fas fa-archive me-2"></i>执行打包
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <!-- 执行日志 -->
+                                        <div class="row mb-3" id="log-area-5-package" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="log-output-5-package" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-3" id="result-area-5-package" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>打包结果</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-5-package" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- 步骤5-2: 部署到 Runtime -->
+                                        <h6 class="mt-4"><i class="fas fa-rocket me-2"></i>步骤 2: 部署到 Runtime</h6>
+                                        <p class="text-muted small">将代码包上传到 S3 并创建 AgentCore Runtime</p>
+                                        <!-- Demo 代码 -->
+                                        <div class="code-snippet mb-3">
+<pre style="margin: 0;">import boto3
+import time
+
+# 配置
+region = "{REGION}"
+agent_name = f"runtime_demo_{int(time.time())}"
+s3_bucket = "{S3_BUCKET}"
+s3_key = f"{agent_name}/deployment_package.zip"
+role_arn = "{EXECUTION_ROLE_ARN}"
+
+# 上传到 S3
+s3_client = boto3.client('s3', region_name=region)
+s3_client.upload_file(
+    'deployment_package.zip',
+    s3_bucket,
+    s3_key
+)
+
+# 创建 Runtime
+agentcore_client = boto3.client('bedrock-agentcore-control', region_name=region)
+response = agentcore_client.create_agent_runtime(
+    agentRuntimeName=agent_name,
+    agentRuntimeArtifact={
+        'codeConfiguration': {
+            'code': {
+                's3': {
+                    'bucket': s3_bucket,
+                    'prefix': s3_key
+                }
+            },
+            'runtime': 'PYTHON_3_13',
+            'entryPoint': ['main.py']
+        }
+    },
+    networkConfiguration={"networkMode": "PUBLIC"},
+    roleArn=role_arn
+)
+
+print(f"Runtime ARN: {response['agentRuntimeArn']}")
+print(f"Runtime ID: {response['agentRuntimeId']}")</pre>
+                                        </div>
+
+
+                                        <button class="btn btn-primary" id="btn-step5-deploy" onclick="executeStep5Deploy()">
+                                            <i class="fas fa-play me-2"></i>部署到 Runtime
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <!-- 执行日志 -->
+                                        <div class="row mb-3" id="log-area-5-deploy" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="log-output-5-deploy" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-3" id="result-area-5-deploy" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>部署结果</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-5-deploy" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 6: 检查 Runtime 状态 -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-heartbeat me-2"></i>Part 6: 检查 Runtime 状态
+                                        </h4>
+                                        <p class="text-muted">检查 Runtime 部署状态</p>
+
+                                        <!-- Demo 代码 -->
+                                        <div class="code-snippet mb-3">
+<pre style="margin: 0;">import boto3
+
+agentcore_client = boto3.client('bedrock-agentcore-control', region_name='us-west-2')
+
+response = agentcore_client.get_agent_runtime(
+    agentRuntimeId='{runtime_id}',
+    agentRuntimeVersion='1'
+)
+
+print(f"Status: {response['status']}")
+print(f"ARN: {response['agentRuntimeArn']}")
+
+# 状态说明:
+# - CREATING: 创建中
+# - READY: 就绪，可以调用
+# - CREATE_FAILED: 创建失败
+# - UPDATING: 更新中
+# - UPDATE_FAILED: 更新失败
+# - DELETING: 删除中</pre>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Runtime ID:</label>
+                                            <input type="text" class="form-control" id="input-runtime-id" placeholder="自动填充或手动输入">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Runtime Version:</label>
+                                            <input type="text" class="form-control" id="input-runtime-version" value="1">
+                                        </div>
+
+                                        <button class="btn btn-info" id="btn-step6" onclick="executeStep6()">
+                                            <i class="fas fa-search me-2"></i>检查状态
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <!-- 状态结果 -->
+                                        <div class="row mb-3" id="result-area-6" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>状态信息</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-6" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 7: 调用 Agent -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-paper-plane me-2"></i>Part 7: 调用 Agent
+                                        </h4>
+                                        <p class="text-muted">调用已部署的 Agent</p>
+
+                                        <!-- Demo 代码 -->
+                                        <div class="code-snippet mb-3">
+<pre style="margin: 0;">import boto3
+import json
+
+agent_core_client = boto3.client('bedrock-agentcore', region_name='us-west-2')
+
+payload = json.dumps({
+    "prompt": "请介绍一下 Amazon Bedrock AgentCore"
+})
+
+response = agent_core_client.invoke_agent_runtime(
+    agentRuntimeArn='{runtime_arn}',
+    runtimeSessionId='dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmt',
+    payload=payload,
+    qualifier="DEFAULT"
+)
+
+response_body = response['response'].read()
+response_data = json.loads(response_body)
+print("Agent Response:", response_data)</pre>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Runtime ARN:</label>
+                                            <input type="text" class="form-control" id="input-runtime-arn" placeholder="自动填充或手动输入">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Session ID (至少 33 个字符):</label>
+                                            <input type="text" class="form-control" id="input-session-id" value="dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmt">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Prompt:</label>
+                                            <textarea class="form-control" id="input-prompt" rows="3" placeholder="输入您的问题...">请介绍一下 Amazon Bedrock AgentCore</textarea>
+                                        </div>
+
+                                        <button class="btn btn-success" id="btn-step7" onclick="executeStep7()">
+                                            <i class="fas fa-play me-2"></i>调用 Agent
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <!-- Agent 响应 -->
+                                        <div class="row mb-3" id="result-area-7" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-robot me-2"></i>Agent 响应</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-7" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 8: 清理 Runtime -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-trash-alt me-2"></i>Part 8: 清理 Runtime
+                                        </h4>
+                                        <p class="text-muted">删除已部署的 Runtime</p>
+
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            <strong>警告:</strong> 删除操作不可逆！请确认要删除的 Runtime。
+                                        </div>
+
+                                        <!-- Demo 代码 -->
+                                        <div class="code-snippet mb-3">
+<pre style="margin: 0;">import boto3
+
+# 配置
+runtime_id = "{runtime_id}"  # 从 Part 5 自动填充
+region = "{REGION}"
+
+# 删除 Runtime
+agentcore_control_client = boto3.client('bedrock-agentcore-control', region_name=region)
+
+response = agentcore_control_client.delete_agent_runtime(
+    agentRuntimeId=runtime_id
+)
+
+print(f"✓ Runtime 已删除: {runtime_id}")
+print(f"状态: {response['status']}")
+
+# 可选: 删除 S3 文件
+s3_client = boto3.client('s3', region_name=region)
+s3_client.delete_object(
+    Bucket="{S3_BUCKET}",
+    Key=f"{{agent_name}}/deployment_package.zip"
+)
+print("✓ S3 部署包已删除")</pre>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Runtime ID:</label>
+                                            <input type="text" class="form-control" id="input-cleanup-runtime-id" placeholder="自动填充或手动输入">
+                                        </div>
+
+                                        <button class="btn btn-danger" id="btn-step8" onclick="executeStep8()">
+                                            <i class="fas fa-trash me-2"></i>删除 Runtime
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <!-- 清理结果 -->
+                                        <div class="row mb-3" id="result-area-8" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>清理结果</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-8" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <!-- Container Deployment Tab -->
+                                <div class="tab-pane fade" id="container-tab">
+                                    <div class="runtime-part text-center" style="padding: 60px 20px;">
+                                        <i class="fas fa-docker fa-5x text-secondary mb-4"></i>
+                                        <h3>Container Deployment</h3>
+                                        <p class="text-muted">此功能即将推出！</p>
+                                        <p>Container Deployment 允许您使用 Docker 容器部署 Agent，支持：</p>
+                                        <ul class="list-unstyled">
+                                            <li><i class="fas fa-check text-success me-2"></i>自定义运行时环境</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>多种编程语言</li>
+                                            <li><i class="fas fa-check text-success me-2"></i>复杂的依赖管理</li>
+                                        </ul>
+                                        <p class="text-muted mt-4">敬请期待...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -195,6 +579,6 @@
 
     <script src="/static/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/script.js"></script>
+    <script src="/static/js/runtime.js"></script>
 </body>
 </html>
-

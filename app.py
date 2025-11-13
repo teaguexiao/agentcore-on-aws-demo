@@ -44,6 +44,9 @@ from agentcore_code_interpreter import (
 # Import AgentCore memory API
 from agentcore_memory_api import memory_api
 
+# Import AgentCore runtime API
+from agentcore_runtime_api import router as runtime_router, init_runtime_vars
+
 # Configure logging
 class WebSocketLogHandler(logging.Handler):
     def __init__(self, connection_manager):
@@ -99,6 +102,9 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AgentCore on AWS Demo UI")
+
+# Include routers
+app.include_router(runtime_router)
 
 # Mount static files directory
 os.makedirs("static", exist_ok=True)
@@ -915,6 +921,9 @@ if __name__ == "__main__":
 
     # Initialize shared variables in agentcore_code_interpreter.py
     init_agentcore_code_interpreter_vars(logger)
+
+    # Initialize shared variables in agentcore_runtime_api.py
+    init_runtime_vars(manager)
 
     # Log startup message
     logger.info("Starting AgentCore on AWS Demo UI")
