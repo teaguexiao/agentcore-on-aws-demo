@@ -26,9 +26,9 @@ router = APIRouter(prefix="/api/runtime/demo", tags=["runtime"])
 # 配置信息 (from environment variables)
 ACCOUNT_ID = os.getenv("AWS_ACCOUNT_ID")
 REGION = os.getenv("AWS_REGION", "us-west-2")
-DEPLOYMENT_PACKAGE_PATH = os.getenv("DEPLOYMENT_PACKAGE_PATH", "deployment_packages/strands_agent/deployment_package.zip")
 
-# S3 和 IAM 配置 (从环境变量读取)
+# Direct Code Deployment 配置
+DEPLOYMENT_PACKAGE_PATH = os.getenv("DEPLOYMENT_PACKAGE_PATH", "deployment_packages/strands_agent/deployment_package.zip")
 S3_BUCKET = os.getenv("S3_BUCKET")
 ROLE_ARN = os.getenv("EXECUTION_ROLE_ARN")
 
@@ -40,6 +40,17 @@ if not S3_BUCKET:
 if not ROLE_ARN:
     ROLE_ARN = f"arn:aws:iam::{ACCOUNT_ID}:role/AmazonBedrockAgentCoreSDKRuntime-{REGION}"
     logger.warning(f"EXECUTION_ROLE_ARN not configured, using default: {ROLE_ARN}")
+
+# Container Deployment 配置
+CONTAINER_ECR_REPOSITORY = os.getenv("CONTAINER_ECR_REPOSITORY_NAME")
+CONTAINER_IMAGE_TAG = os.getenv("CONTAINER_IMAGE_TAG", "latest")
+CONTAINER_ROLE_ARN = os.getenv("CONTAINER_EXECUTION_ROLE_ARN")
+
+def build_container_image_uri():
+    """构建完整的 ECR 镜像 URI"""
+    if not CONTAINER_ECR_REPOSITORY or not ACCOUNT_ID or not REGION:
+        raise ValueError("缺少必需的环境变量: CONTAINER_ECR_REPOSITORY_NAME, AWS_ACCOUNT_ID, AWS_REGION")
+    return f"{ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{CONTAINER_ECR_REPOSITORY}:{CONTAINER_IMAGE_TAG}"
 
 # 会话状态存储 (内存，生产环境应使用Redis)
 runtime_sessions: Dict[str, Dict[str, Any]] = {}
@@ -99,6 +110,7 @@ class Step7InvokeRequest(RuntimeRequest):
     runtime_arn: str
     runtime_session_id: str  # Runtime 的 session ID (至少33个字符)
     prompt: str
+    deployment_type: Optional[str] = "code"  # "code" 或 "container"
 
     @validator('prompt')
     def validate_prompt(cls, v):
@@ -112,6 +124,12 @@ class Step7InvokeRequest(RuntimeRequest):
     def validate_runtime_session_id(cls, v):
         if len(v) < 33:
             raise ValueError('Runtime Session ID 长度必须至少 33 个字符')
+        return v
+
+    @validator('deployment_type')
+    def validate_deployment_type(cls, v):
+        if v not in ["code", "container"]:
+            raise ValueError('deployment_type 必须是 "code" 或 "container"')
         return v
 
 class Step8CleanupRequest(RuntimeRequest):
@@ -354,6 +372,7 @@ async def step5_deploy_runtime_stream(session_id: str, agent_name: Optional[str]
 
             # 保存到会话
             runtime_sessions[session_id] = {
+                "deployment_type": "code",
                 "runtime_arn": runtime_arn,
                 "runtime_id": runtime_id,
                 "agent_name": agent_name,
@@ -446,12 +465,25 @@ async def step7_invoke_agent(request: Step7InvokeRequest):
     """Step 7: 调用 Runtime"""
     init_clients()
 
-    logger.info(f"Session {request.session_id}: 调用 Runtime - {request.runtime_arn}")
+    logger.info(f"Session {request.session_id}: 调用 Runtime ({request.deployment_type}) - {request.runtime_arn}")
+    logger.info(f"完整请求参数: deployment_type={request.deployment_type}, runtime_session_id={request.runtime_session_id}, prompt_length={len(request.prompt)}")
 
     start_time = time.time()
 
     try:
-        payload = json.dumps({"prompt": request.prompt})
+        # 根据 deployment_type 构建不同的 payload
+        if request.deployment_type == "container":
+            # Container Deployment: FastAPI 端点需要 {"input": {"prompt": "..."}}
+            payload = json.dumps({
+                "input": {"prompt": request.prompt}
+            })
+            logger.info(f"使用 Container payload 格式: {payload}")
+        else:
+            # Direct Code Deployment: BedrockAgentCoreApp 需要 {"prompt": "..."}
+            payload = json.dumps({
+                "prompt": request.prompt
+            })
+            logger.info(f"使用 Direct Code payload 格式: {payload}")
 
         response = agentcore_client.invoke_agent_runtime(
             agentRuntimeArn=request.runtime_arn,
@@ -471,7 +503,8 @@ async def step7_invoke_agent(request: Step7InvokeRequest):
             "status": "success",
             "response": response_data,
             "execution_time": f"{execution_time:.2f}s",
-            "prompt": request.prompt
+            "prompt": request.prompt,
+            "deployment_type": request.deployment_type
         }
 
     except Exception as e:
@@ -550,5 +583,349 @@ async def get_environment_config():
             "REGION": REGION,
             "S3_BUCKET": S3_BUCKET or "YOUR_S3_BUCKET",
             "EXECUTION_ROLE_ARN": ROLE_ARN or "YOUR_EXECUTION_ROLE_ARN"
+        }
+    }
+
+# ==================== Container Deployment 端点 ====================
+
+@router.get("/container/step1-stream")
+async def container_step1_init_project_stream(session_id: str):
+    """Container Step 1: 模拟初始化项目 - SSE 流式输出"""
+    logger.info(f"Session {session_id}: 执行 Container Step 1 - 初始化项目 (SSE)")
+
+    async def generate():
+        output_lines = [
+            "Creating project directory: my-custom-agent",
+            "Initializing Python 3.11 project...",
+            "Created pyproject.toml",
+            "Created uv.lock",
+            "Created .venv directory",
+            "",
+            "Adding dependencies:",
+            "  - fastapi",
+            "  - uvicorn[standard]",
+            "  - pydantic",
+            "  - httpx",
+            "  - strands-agents",
+            "",
+            "Installing packages...",
+            "✓ All dependencies installed successfully!",
+            "✓ Project setup completed!"
+        ]
+
+        for line in output_lines:
+            await asyncio.sleep(0.5)
+            data = json.dumps({"line": line, "done": False})
+            yield f"data: {data}\n\n"
+
+        final_data = json.dumps({
+            "done": True,
+            "message": "项目初始化完成",
+            "output": "\n".join(output_lines)
+        })
+        yield f"data: {final_data}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@router.get("/container/step2-stream")
+async def container_step2_create_agent_stream(session_id: str):
+    """Container Step 2: 模拟创建 Agent 应用 - SSE 流式输出"""
+    logger.info(f"Session {session_id}: 执行 Container Step 2 - 创建 Agent 应用 (SSE)")
+
+    async def generate():
+        output_lines = [
+            "Creating FastAPI application...",
+            "Writing agent.py with endpoints:",
+            "  - POST /invocations (Agent invocation)",
+            "  - GET /ping (Health check)",
+            "",
+            "Configuring Strands Agent...",
+            "Setting up request/response models:",
+            "  - InvocationRequest",
+            "  - InvocationResponse",
+            "",
+            "Adding error handling...",
+            "Configuring uvicorn server...",
+            "",
+            "✓ File created: my-custom-agent/agent.py",
+            "✓ Agent application ready for containerization"
+        ]
+
+        for line in output_lines:
+            await asyncio.sleep(0.5)
+            data = json.dumps({"line": line, "done": False})
+            yield f"data: {data}\n\n"
+
+        final_data = json.dumps({
+            "done": True,
+            "message": "agent.py 创建完成",
+            "file_path": "my-custom-agent/agent.py",
+            "output": "\n".join(output_lines)
+        })
+        yield f"data: {final_data}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@router.get("/container/step3-stream")
+async def container_step3_create_dockerfile_stream(session_id: str):
+    """Container Step 3: 模拟创建 Dockerfile - SSE 流式输出"""
+    logger.info(f"Session {session_id}: 执行 Container Step 3 - 创建 Dockerfile (SSE)")
+
+    async def generate():
+        output_lines = [
+            "Creating Dockerfile for ARM64 architecture...",
+            "Base image: ghcr.io/astral-sh/uv:python3.11-bookworm-slim",
+            "Platform: linux/arm64",
+            "",
+            "Configuring workdir: /app",
+            "Adding dependency files: pyproject.toml, uv.lock",
+            "Installing dependencies with uv sync...",
+            "Copying agent.py...",
+            "",
+            "Exposing port 8080...",
+            "Setting CMD: uvicorn agent:app --host 0.0.0.0 --port 8080",
+            "",
+            "✓ Dockerfile created: my-custom-agent/Dockerfile",
+            "✓ Container configuration ready"
+        ]
+
+        for line in output_lines:
+            await asyncio.sleep(0.5)
+            data = json.dumps({"line": line, "done": False})
+            yield f"data: {data}\n\n"
+
+        final_data = json.dumps({
+            "done": True,
+            "message": "Dockerfile 创建完成",
+            "file_path": "my-custom-agent/Dockerfile",
+            "output": "\n".join(output_lines)
+        })
+        yield f"data: {final_data}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@router.get("/container/step4-stream")
+async def container_step4_buildx_setup_stream(session_id: str):
+    """Container Step 4: 模拟设置 Docker Buildx - SSE 流式输出"""
+    logger.info(f"Session {session_id}: 执行 Container Step 4 - Buildx 设置 (SSE)")
+
+    async def generate():
+        output_lines = [
+            "Setting up Docker Buildx...",
+            "Creating new builder instance: agentcore-builder",
+            "",
+            "$ docker buildx create --use",
+            "agentcore-builder",
+            "",
+            "$ docker buildx inspect --bootstrap",
+            "Name:   agentcore-builder",
+            "Driver: docker-container",
+            "",
+            "Platforms:",
+            "  - linux/amd64",
+            "  - linux/arm64",
+            "  - linux/arm/v7",
+            "  - linux/arm/v6",
+            "",
+            "✓ Buildx configured successfully",
+            "✓ Ready to build multi-platform images"
+        ]
+
+        for line in output_lines:
+            await asyncio.sleep(0.4)
+            data = json.dumps({"line": line, "done": False})
+            yield f"data: {data}\n\n"
+
+        final_data = json.dumps({
+            "done": True,
+            "message": "Docker Buildx 设置完成",
+            "output": "\n".join(output_lines)
+        })
+        yield f"data: {final_data}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@router.get("/container/step5-stream")
+async def container_step5_build_push_stream(session_id: str):
+    """Container Step 5: 模拟构建并推送到 ECR - SSE 流式输出"""
+    logger.info(f"Session {session_id}: 执行 Container Step 5 - 构建推送镜像 (SSE)")
+
+    async def generate():
+        try:
+            ecr_image_uri = build_container_image_uri()
+        except ValueError as e:
+            error_data = json.dumps({
+                "done": True,
+                "error": str(e)
+            })
+            yield f"data: {error_data}\n\n"
+            return
+
+        output_lines = [
+            "Logging in to Amazon ECR...",
+            f"$ aws ecr get-login-password --region {REGION} | docker login ...",
+            "Login Succeeded",
+            "",
+            f"Building Docker image for platform linux/arm64...",
+            f"Target: {ecr_image_uri}",
+            "",
+            "$ docker buildx build --platform linux/arm64 --push .",
+            "[+] Building 45.2s (12/12) FINISHED",
+            " => [internal] load build definition from Dockerfile",
+            " => [internal] load .dockerignore",
+            " => [1/6] FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim",
+            " => [2/6] WORKDIR /app",
+            " => [3/6] COPY pyproject.toml uv.lock ./",
+            " => [4/6] RUN uv sync --frozen --no-cache",
+            " => [5/6] COPY agent.py ./",
+            " => [6/6] EXPOSE 8080",
+            " => exporting to image",
+            " => pushing layers",
+            f" => pushing manifest for {ecr_image_uri}",
+            "",
+            "✓ Image built and pushed successfully!",
+            f"✓ Image URI: {ecr_image_uri}"
+        ]
+
+        for line in output_lines:
+            await asyncio.sleep(0.3)
+            data = json.dumps({"line": line, "done": False})
+            yield f"data: {data}\n\n"
+
+        final_data = json.dumps({
+            "done": True,
+            "message": "Docker 镜像构建推送完成",
+            "ecr_image_uri": ecr_image_uri,
+            "output": "\n".join(output_lines)
+        })
+        yield f"data: {final_data}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@router.get("/container/step6-stream")
+async def container_step6_deploy_stream(session_id: str, agent_name: Optional[str] = None):
+    """Container Step 6: 真实部署 Runtime - SSE 流式输出"""
+    init_clients()
+    agent_name = agent_name or f"container_demo_{int(time.time())}"
+    logger.info(f"Session {session_id}: 开始部署 Container Runtime {agent_name} (SSE)")
+
+    async def generate():
+        try:
+            ecr_image_uri = build_container_image_uri()
+            start_msg = json.dumps({"line": f"正在创建 AgentCore Runtime: {agent_name}", "done": False})
+            yield f"data: {start_msg}\n\n"
+
+            image_msg = json.dumps({"line": f"使用容器镜像: {ecr_image_uri}", "done": False})
+            yield f"data: {image_msg}\n\n"
+
+            logger.info(f"创建 Container Runtime: {agent_name}")
+            response = agentcore_control_client.create_agent_runtime(
+                agentRuntimeName=agent_name,
+                agentRuntimeArtifact={'containerConfiguration': {'containerUri': ecr_image_uri}},
+                networkConfiguration={"networkMode": "PUBLIC"},
+                roleArn=CONTAINER_ROLE_ARN
+            )
+
+            runtime_arn = response['agentRuntimeArn']
+            runtime_id = response['agentRuntimeId']
+
+            runtime_sessions[session_id] = {
+                "deployment_type": "container",
+                "runtime_arn": runtime_arn,
+                "runtime_id": runtime_id,
+                "agent_name": agent_name,
+                "ecr_image_uri": ecr_image_uri,
+                "ecr_repository_name": CONTAINER_ECR_REPOSITORY,
+                "image_tag": CONTAINER_IMAGE_TAG,
+                "created_at": time.time()
+            }
+
+            logger.info(f"Container Runtime 创建成功: {runtime_arn}")
+            complete_msg = json.dumps({
+                "line": f"\n✓ Runtime 创建成功!\n\nRuntime ARN: {runtime_arn}\nRuntime ID: {runtime_id}\nStatus: CREATING",
+                "done": False
+            })
+            yield f"data: {complete_msg}\n\n"
+
+            final_data = json.dumps({
+                "done": True,
+                "status": "success",
+                "runtime_arn": runtime_arn,
+                "runtime_id": runtime_id,
+                "runtime_version": "1",
+                "agent_name": agent_name,
+                "ecr_image_uri": ecr_image_uri,
+                "message": "Container Runtime 部署成功！"
+            })
+            yield f"data: {final_data}\n\n"
+
+        except Exception as e:
+            logger.error(f"Container 部署失败: {str(e)}")
+            error_data = json.dumps({"done": True, "error": f"部署失败: {str(e)}"})
+            yield f"data: {error_data}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"}
+    )
+
+@router.get("/container/config")
+async def get_container_config():
+    """获取 Container 配置信息（用于前端动态替换代码变量）"""
+    try:
+        ecr_image_uri = build_container_image_uri()
+    except ValueError:
+        ecr_image_uri = "YOUR_ECR_IMAGE_URI"
+
+    return {
+        "status": "success",
+        "config": {
+            "ACCOUNT_ID": ACCOUNT_ID or "YOUR_ACCOUNT_ID",
+            "REGION": REGION,
+            "CONTAINER_ECR_REPOSITORY_NAME": CONTAINER_ECR_REPOSITORY or "YOUR_REPOSITORY",
+            "CONTAINER_IMAGE_TAG": CONTAINER_IMAGE_TAG,
+            "CONTAINER_EXECUTION_ROLE_ARN": CONTAINER_ROLE_ARN or "YOUR_CONTAINER_ROLE_ARN",
+            "ECR_IMAGE_URI": ecr_image_uri
         }
     }

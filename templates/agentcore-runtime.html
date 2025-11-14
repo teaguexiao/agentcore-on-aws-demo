@@ -130,8 +130,7 @@
                                 </li>
                                 <li class="nav-item" role="presentation">
                                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#container-tab" type="button">
-                                        <i class="fas fa-docker me-2"></i>Container Deployment
-                                        <span class="badge bg-secondary coming-soon-badge">Coming Soon</span>
+                                        <i class="fab fa-docker me-2"></i>Container Deployment
                                     </button>
                                 </li>
                             </ul>
@@ -444,13 +443,14 @@ import json
 
 agent_core_client = boto3.client('bedrock-agentcore', region_name='us-west-2')
 
+# Direct Code Deployment 使用简单的 payload 格式
 payload = json.dumps({
     "prompt": "请介绍一下 Amazon Bedrock AgentCore"
 })
 
 response = agent_core_client.invoke_agent_runtime(
     agentRuntimeArn='{runtime_arn}',
-    runtimeSessionId='dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmt',
+    runtimeSessionId='dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmt',  # Must be 33+ chars
     payload=payload,
     qualifier="DEFAULT"
 )
@@ -553,22 +553,515 @@ print("✓ S3 部署包已删除")</pre>
 
                                 </div>
 
-                                <!-- Container Deployment Tab -->
                                 <div class="tab-pane fade" id="container-tab">
-                                    <div class="runtime-part text-center" style="padding: 60px 20px;">
-                                        <i class="fas fa-docker fa-5x text-secondary mb-4"></i>
-                                        <h3>Container Deployment</h3>
-                                        <p class="text-muted">此功能即将推出！</p>
-                                        <p>Container Deployment 允许您使用 Docker 容器部署 Agent，支持：</p>
+
+                                    <!-- Part 1: 前置要求 -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-list-check me-2"></i>Part 1: 前置要求
+                                        </h4>
                                         <ul class="list-unstyled">
-                                            <li><i class="fas fa-check text-success me-2"></i>自定义运行时环境</li>
-                                            <li><i class="fas fa-check text-success me-2"></i>多种编程语言</li>
-                                            <li><i class="fas fa-check text-success me-2"></i>复杂的依赖管理</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>配置好 AWS 账户凭证</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>安装 Docker 和 Docker Buildx</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>安装 uv 包管理器和 Python 3.11+</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>具备适当的 AWS 权限</li>
+                                            <li><i class="fas fa-check-circle text-warning me-2"></i>已创建 ECR 仓库并推送 Docker 镜像</li>
+                                            <li><i class="fas fa-check-circle text-success me-2"></i>在 Amazon Bedrock 控制台启用相关模型</li>
                                         </ul>
-                                        <p class="text-muted mt-4">敬请期待...</p>
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            <strong>重要：</strong> Container Deployment 需要预先构建并推送 Docker 镜像到 ECR。请确保已在 .env 中配置 CONTAINER_ECR_REPOSITORY_NAME、CONTAINER_IMAGE_TAG 和 CONTAINER_EXECUTION_ROLE_ARN。
+                                        </div>
                                     </div>
+
+                                    <!-- Part 2: 设置项目并安装依赖 -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-cog me-2"></i>Part 2: 设置项目并安装依赖
+                                        </h4>
+                                        <p class="text-muted">初始化项目并安装 FastAPI 和 Strands Agents</p>
+
+                                        <div class="code-snippet">
+<pre style="margin: 0;"># 创建项目目录
+mkdir my-custom-agent && cd my-custom-agent
+
+# 初始化 Python 3.11 项目
+uv init --python 3.11
+
+# 添加依赖
+uv add fastapi 'uvicorn[standard]' pydantic httpx strands-agents</pre>
+                                        </div>
+
+                                        <button class="btn btn-primary" id="btn-container-step1" onclick="executeContainerStep1()">
+                                            <i class="fas fa-play me-2"></i>执行
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <!-- 执行日志 -->
+                                        <div class="row mb-3" id="log-area-container-1" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="log-output-container-1" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-3" id="result-area-container-1" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>执行结果</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-container-1" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 3: 创建 Agent 应用 -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-file-code me-2"></i>Part 3: 创建 Agent 应用
+                                        </h4>
+                                        <p class="text-muted">创建 FastAPI 应用 agent.py，实现 /invocations 和 /ping 端点</p>
+
+                                        <div class="code-snippet">
+<pre style="margin: 0;">from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import Dict, Any
+from datetime import datetime
+from strands import Agent
+
+app = FastAPI(title="Strands Agent Server", version="1.0.0")
+strands_agent = Agent()
+
+class InvocationRequest(BaseModel):
+    input: Dict[str, Any]
+
+class InvocationResponse(BaseModel):
+    output: Dict[str, Any]
+
+@app.post("/invocations", response_model=InvocationResponse)
+async def invoke_agent(request: InvocationRequest):
+    try:
+        user_message = request.input.get("prompt", "")
+        if not user_message:
+            raise HTTPException(status_code=400, detail="No prompt found")
+
+        result = strands_agent(user_message)
+        response = {
+            "message": result.message,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        return InvocationResponse(output=response)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/ping")
+async def ping():
+    return {"status": "healthy"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080)</pre>
+                                        </div>
+
+                                        <button class="btn btn-primary" id="btn-container-step2" onclick="executeContainerStep2()">
+                                            <i class="fas fa-plus me-2"></i>创建 Agent 应用文件
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <!-- 执行日志 -->
+                                        <div class="row mb-3" id="log-area-container-2" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="log-output-container-2" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-3" id="result-area-container-2" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>执行结果</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-container-2" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 4: 创建 Dockerfile -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fab fa-docker me-2"></i>Part 4: 创建 Dockerfile
+                                        </h4>
+                                        <p class="text-muted">创建 ARM64 架构的 Docker 镜像配置</p>
+
+                                        <div class="code-snippet">
+<pre style="margin: 0;"># Use uv's ARM64 Python base image
+FROM --platform=linux/arm64 ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+
+WORKDIR /app
+
+# Copy uv files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies
+RUN uv sync --frozen --no-cache
+
+# Copy agent file
+COPY agent.py ./
+
+# Expose port
+EXPOSE 8080
+
+# Run application
+CMD ["uv", "run", "uvicorn", "agent:app", "--host", "0.0.0.0", "--port", "8080"]</pre>
+                                        </div>
+
+                                        <button class="btn btn-primary" id="btn-container-step3" onclick="executeContainerStep3()">
+                                            <i class="fas fa-file-alt me-2"></i>创建 Dockerfile
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <!-- 执行日志和结果 -->
+                                        <div class="row mb-3" id="log-area-container-3" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="log-output-container-3" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-3" id="result-area-container-3" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>执行结果</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-container-3" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 5: 设置 Docker Buildx -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-tools me-2"></i>Part 5: 设置 Docker Buildx
+                                        </h4>
+                                        <p class="text-muted">配置 Docker Buildx 以支持多平台构建</p>
+
+                                        <div class="code-snippet">
+<pre style="margin: 0;">docker buildx create --use
+docker buildx inspect --bootstrap</pre>
+                                        </div>
+
+                                        <button class="btn btn-secondary" id="btn-container-step4" onclick="executeContainerStep4()">
+                                            <i class="fas fa-cogs me-2"></i>配置 Buildx
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <div class="row mb-3" id="log-area-container-4" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="log-output-container-4" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-3" id="result-area-container-4" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>执行结果</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-container-4" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+
+                                    <!-- Part 6: 构建并推送到 ECR -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-cloud-upload-alt me-2"></i>Part 6: 构建并推送到 ECR
+                                        </h4>
+                                        <p class="text-muted">构建 ARM64 Docker 镜像并推送到 Amazon ECR</p>
+
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <strong>说明：</strong> 此步骤为模拟演示。实际部署前，请确保已手动执行以下命令完成镜像构建和推送。
+                                        </div>
+
+                                        <div class="code-snippet">
+<pre style="margin: 0;"># 登录 ECR
+aws ecr get-login-password --region {REGION} | \
+  docker login --username AWS --password-stdin \
+  {ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com
+
+# 构建并推送镜像
+docker buildx build \
+  --platform linux/arm64 \
+  -t {ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{CONTAINER_ECR_REPOSITORY_NAME}:{CONTAINER_IMAGE_TAG} \
+  --push .</pre>
+                                        </div>
+
+                                        <button class="btn btn-secondary mb-3" id="btn-container-step5" onclick="executeContainerStep5()">
+                                            <i class="fas fa-play-circle me-2"></i>模拟构建推送过程
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <div class="row mb-3" id="log-area-container-5" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="log-output-container-5" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-3" id="result-area-container-5" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>执行结果</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-container-5" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 7: 部署到 AgentCore Runtime -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-rocket me-2"></i>Part 7: 部署到 AgentCore Runtime
+                                        </h4>
+                                        <p class="text-muted">使用容器镜像创建 AgentCore Runtime</p>
+
+                                        <div class="code-snippet mb-3">
+<pre style="margin: 0;">import boto3
+import time
+
+# 配置
+region = "{REGION}"
+agent_name = f"container_demo_{int(time.time())}"
+ecr_image_uri = "{ECR_IMAGE_URI}"
+role_arn = "{CONTAINER_EXECUTION_ROLE_ARN}"
+
+# 创建 Runtime
+agentcore_client = boto3.client('bedrock-agentcore-control', region_name=region)
+response = agentcore_client.create_agent_runtime(
+    agentRuntimeName=agent_name,
+    agentRuntimeArtifact={
+        'containerConfiguration': {
+            'containerUri': ecr_image_uri
+        }
+    },
+    networkConfiguration={"networkMode": "PUBLIC"},
+    roleArn=role_arn
+)
+
+print(f"Runtime ARN: {response['agentRuntimeArn']}")
+print(f"Runtime ID: {response['agentRuntimeId']}")</pre>
+                                        </div>
+
+                                        <button class="btn btn-primary" id="btn-container-step6" onclick="executeContainerStep6()">
+                                            <i class="fas fa-play me-2"></i>部署到 Runtime
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <div class="row mb-3" id="log-area-container-6" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="log-output-container-6" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row mb-3" id="result-area-container-6" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>部署结果</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-container-6" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 8: 检查 Runtime 状态 -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-heartbeat me-2"></i>Part 8: 检查 Runtime 状态
+                                        </h4>
+                                        <p class="text-muted">检查 Runtime 部署状态</p>
+
+                                        <!-- Demo 代码 -->
+                                        <div class="code-snippet mb-3">
+<pre style="margin: 0;">import boto3
+
+agentcore_client = boto3.client('bedrock-agentcore-control', region_name='us-west-2')
+
+response = agentcore_client.get_agent_runtime(
+    agentRuntimeId='{runtime_id}',
+    agentRuntimeVersion='1'
+)
+
+print(f"Status: {response['status']}")
+print(f"ARN: {response['agentRuntimeArn']}")
+
+# 状态说明:
+# - CREATING: 创建中
+# - READY: 就绪，可以调用
+# - CREATE_FAILED: 创建失败
+# - UPDATING: 更新中
+# - UPDATE_FAILED: 更新失败
+# - DELETING: 删除中</pre>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Runtime ID:</label>
+                                            <input type="text" class="form-control" id="input-container-runtime-id" placeholder="自动填充或手动输入">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Runtime Version:</label>
+                                            <input type="text" class="form-control" id="input-container-runtime-version" value="1">
+                                        </div>
+
+                                        <button class="btn btn-info" id="btn-container-step7" onclick="executeContainerStep7()">
+                                            <i class="fas fa-search me-2"></i>检查状态
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <div class="row mb-3" id="result-area-container-7" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>状态信息</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-container-7" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 9: 调用 Agent -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-paper-plane me-2"></i>Part 9: 调用 Agent
+                                        </h4>
+                                        <p class="text-muted">调用已部署的 Container Agent</p>
+
+                                        <!-- Demo 代码 -->
+                                        <div class="code-snippet mb-3">
+<pre style="margin: 0;">import boto3
+import json
+
+agent_core_client = boto3.client('bedrock-agentcore', region_name='us-west-2')
+
+# Container Deployment 使用 FastAPI 端点格式，需要嵌套在 input 中
+payload = json.dumps({
+    "input": {"prompt": "讲个笑话"}
+})
+
+response = agent_core_client.invoke_agent_runtime(
+    agentRuntimeArn='{runtime_arn}',
+    runtimeSessionId='dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmt',  # Must be 33+ chars
+    payload=payload,
+    qualifier="DEFAULT"
+)
+
+response_body = response['response'].read()
+response_data = json.loads(response_body)
+print("Agent Response:", response_data)</pre>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Runtime ARN:</label>
+                                            <input type="text" class="form-control" id="input-container-runtime-arn" placeholder="自动填充或手动输入">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Session ID (至少 33 个字符):</label>
+                                            <input type="text" class="form-control" id="input-container-session-id" value="dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmt">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Prompt:</label>
+                                            <textarea class="form-control" id="input-container-prompt" rows="3" placeholder="输入您的问题...">请介绍一下 Amazon Bedrock AgentCore Container Deployment</textarea>
+                                        </div>
+
+                                        <button class="btn btn-success" id="btn-container-step8" onclick="executeContainerStep8()">
+                                            <i class="fas fa-play me-2"></i>调用 Agent
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <div class="row mb-3" id="result-area-container-8" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-robot me-2"></i>Agent 响应</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-container-8" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 10: 清理 Runtime -->
+                                    <div class="runtime-part">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-trash-alt me-2"></i>Part 10: 清理 Runtime
+                                        </h4>
+                                        <p class="text-muted">删除已部署的 Container Runtime</p>
+
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            <strong>警告:</strong> 删除操作不可逆！请确认要删除的 Runtime。
+                                            <br><strong>注意:</strong> ECR 镜像不会被删除，需要手动管理。
+                                        </div>
+
+                                        <!-- Demo 代码 -->
+                                        <div class="code-snippet mb-3">
+<pre style="margin: 0;">import boto3
+
+# 配置
+runtime_id = "{runtime_id}"  # 从 Part 7 自动填充
+region = "{REGION}"
+
+# 删除 Runtime
+agentcore_control_client = boto3.client('bedrock-agentcore-control', region_name=region)
+
+response = agentcore_control_client.delete_agent_runtime(
+    agentRuntimeId=runtime_id
+)
+
+print(f"✓ Container Runtime 已删除: {runtime_id}")
+print(f"状态: {response['status']}")
+
+# 注意: ECR 镜像不会被自动删除
+# 如需删除 ECR 镜像，请手动执行:
+# aws ecr batch-delete-image --repository-name {CONTAINER_ECR_REPOSITORY_NAME} \
+#     --image-ids imageTag={CONTAINER_IMAGE_TAG}</pre>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Runtime ID:</label>
+                                            <input type="text" class="form-control" id="input-container-cleanup-id" placeholder="自动填充或手动输入">
+                                        </div>
+
+                                        <button class="btn btn-danger" id="btn-container-step9" onclick="executeContainerStep9()">
+                                            <i class="fas fa-trash me-2"></i>删除 Runtime
+                                            <span class="spinner-border spinner-border-sm ms-2"></span>
+                                        </button>
+
+                                        <div class="row mb-3" id="result-area-container-9" style="display: none;">
+                                            <div class="col-12">
+                                                <h6><i class="fas fa-check-circle me-2"></i>清理结果</h6>
+                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
+                                                    <pre id="result-output-container-9" style="margin: 0; color: #d4d4d4;"></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                 </div>
-                            </div>
                         </div>
                     </div>
 
@@ -579,6 +1072,7 @@ print("✓ S3 部署包已删除")</pre>
 
     <script src="/static/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/script.js"></script>
-    <script src="/static/js/runtime.js"></script>
+    <script src="/static/js/runtime.js?v=2"></script>
+    <script src="/static/js/runtime-container.js?v=2"></script>
 </body>
 </html>

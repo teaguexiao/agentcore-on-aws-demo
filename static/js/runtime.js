@@ -185,15 +185,19 @@ function showError(message) {
 
 async function callRuntimeAPI(endpoint, data = {}) {
     try {
+        const requestBody = {
+            session_id: RuntimeState.session_id,
+            ...data
+        };
+
+        console.log(`调用 API: /api/runtime/demo/${endpoint}`, requestBody);
+
         const response = await fetch(`/api/runtime/demo/${endpoint}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                session_id: RuntimeState.session_id,
-                ...data
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -413,7 +417,8 @@ async function executeStep7() {
         const result = await callRuntimeAPI('step7-invoke', {
             runtime_arn: runtimeArn,
             runtime_session_id: sessionId,
-            prompt: prompt
+            prompt: prompt,
+            deployment_type: "code"  // Direct Code Deployment
         });
 
         const responseText = `调用成功！耗时: ${result.execution_time}

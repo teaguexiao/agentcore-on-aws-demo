@@ -31,7 +31,7 @@ def print_status(check_name, passed, message=""):
 
 def check_env_variables():
     """检查环境变量"""
-    print("\n========== 检查环境变量 ==========")
+    print("\n========== 检查环境变量 (Direct Code Deployment) ==========")
     required_vars = {
         "AWS_REGION": os.getenv("AWS_REGION"),
         "AWS_ACCOUNT_ID": os.getenv("AWS_ACCOUNT_ID"),
@@ -59,6 +59,29 @@ def check_env_variables():
         print_status("AWS_SECRET_ACCESS_KEY (可选)", True, "未配置，将使用 IAM Role")
 
     return all_passed
+
+def check_container_env_variables():
+    """检查 Container Deployment 环境变量（可选）"""
+    print("\n========== 检查环境变量 (Container Deployment - 可选) ==========")
+
+    container_vars = {
+        "CONTAINER_ECR_REPOSITORY_NAME": os.getenv("CONTAINER_ECR_REPOSITORY_NAME"),
+        "CONTAINER_IMAGE_TAG": os.getenv("CONTAINER_IMAGE_TAG", "latest"),
+        "CONTAINER_EXECUTION_ROLE_ARN": os.getenv("CONTAINER_EXECUTION_ROLE_ARN")
+    }
+
+    all_configured = True
+    for var_name, var_value in container_vars.items():
+        if var_value and var_value not in ["arn:aws:iam::123456789012:role/AmazonBedrockAgentCoreContainerRuntime-us-west-2"]:
+            print_status(f"{var_name}", True, var_value)
+        else:
+            print_status(f"{var_name}", False, "未配置或使用示例值")
+            all_configured = False
+
+    if not all_configured:
+        print("    提示: Container Deployment 是可选功能，如不使用可忽略")
+
+    return all_configured
 
 def check_aws_credentials():
     """检查 AWS 凭证 (支持 IAM Role, Instance Profile, 或 AK/SK)"""
@@ -163,7 +186,7 @@ def check_bedrock_model_access():
 
 def check_deployment_package():
     """检查部署包是否存在"""
-    print("\n========== 检查部署包 ==========")
+    print("\n========== 检查部署包 (Direct Code Deployment) ==========")
     package_path = os.getenv("DEPLOYMENT_PACKAGE_PATH", "deployment_packages/strands_agent/deployment_package.zip")
 
     if os.path.exists(package_path):
@@ -174,6 +197,72 @@ def check_deployment_package():
         print_status(f"部署包: {package_path}", False, "文件不存在，请准备部署包")
         return False
 
+def check_ecr_image():
+    """检查 ECR 镜像是否存在（Container Deployment - 可选）"""
+    print("\n========== 检查 ECR 镜像 (Container Deployment - 可选) ==========")
+
+    repository_name = os.getenv("CONTAINER_ECR_REPOSITORY_NAME")
+    image_tag = os.getenv("CONTAINER_IMAGE_TAG", "latest")
+    region = os.getenv("AWS_REGION", "us-west-2")
+    account_id = os.getenv("AWS_ACCOUNT_ID")
+
+    if not repository_name or repository_name == "my-strands-agent":
+        print_status("ECR 镜像", False, "CONTAINER_ECR_REPOSITORY_NAME 未配置或使用示例值")
+        print("    提示: 如不使用 Container Deployment 可忽略")
+        return True  # 返回 True 因为这是可选检查
+
+    if not account_id or account_id == "123456789012":
+        print_status("ECR 镜像", False, "AWS_ACCOUNT_ID 未正确配置")
+        return True  # 返回 True 因为这是可选检查
+
+    try:
+        ecr_client = boto3.client('ecr', region_name=region)
+
+        # 检查仓库是否存在
+        try:
+            ecr_client.describe_repositories(repositoryNames=[repository_name])
+            print_status(f"ECR 仓库: {repository_name}", True, "仓库存在")
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'RepositoryNotFoundException':
+                print_status(f"ECR 仓库: {repository_name}", False, "仓库不存在")
+                print(f"    创建命令: aws ecr create-repository --repository-name {repository_name} --region {region}")
+                return True  # 返回 True 因为这是可选检查
+            else:
+                raise
+
+        # 检查镜像是否存在
+        try:
+            response = ecr_client.describe_images(
+                repositoryName=repository_name,
+                imageIds=[{'imageTag': image_tag}]
+            )
+            images = response.get('imageDetails', [])
+            if images:
+                image = images[0]
+                size_mb = image.get('imageSizeInBytes', 0) / (1024 * 1024)
+                pushed_at = image.get('imagePushedAt', 'Unknown')
+                image_uri = f"{account_id}.dkr.ecr.{region}.amazonaws.com/{repository_name}:{image_tag}"
+
+                print_status(f"ECR 镜像: {image_tag}", True,
+                           f"镜像存在\n    URI: {image_uri}\n    大小: {size_mb:.2f} MB\n    推送时间: {pushed_at}")
+                return True
+            else:
+                print_status(f"ECR 镜像: {image_tag}", False, "镜像不存在")
+                print(f"    请先构建并推送镜像到 ECR")
+                return True  # 返回 True 因为这是可选检查
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ImageNotFoundException':
+                print_status(f"ECR 镜像: {image_tag}", False, "镜像不存在")
+                print(f"    请先构建并推送镜像到 ECR")
+                return True  # 返回 True 因为这是可选检查
+            else:
+                raise
+
+    except Exception as e:
+        print_status("ECR 镜像检查", False, f"检查失败: {str(e)}")
+        print("    提示: 如不使用 Container Deployment 可忽略")
+        return True  # 返回 True 因为这是可选检查
+
 def main():
     """主函数"""
     print("=" * 60)
@@ -181,12 +270,14 @@ def main():
     print("=" * 60)
 
     results = {
-        "环境变量": check_env_variables(),
+        "环境变量 (Direct Code)": check_env_variables(),
         "AWS 凭证": check_aws_credentials(),
         "S3 Bucket": check_s3_bucket(),
         "IAM 角色": check_iam_role(),
         "Bedrock 模型": check_bedrock_model_access(),
-        "部署包": check_deployment_package()
+        "部署包 (Direct Code)": check_deployment_package(),
+        "环境变量 (Container - 可选)": check_container_env_variables(),
+        "ECR 镜像 (Container - 可选)": check_ecr_image()
     }
 
     print("\n" + "=" * 60)
