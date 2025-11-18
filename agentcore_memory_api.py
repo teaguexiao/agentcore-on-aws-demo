@@ -68,8 +68,71 @@ class AgentCoreMemoryAPI:
                 "message": f"初始化失败: {str(e)}"
             }
 
+    def initialize_stream_unified(self, memory_id: str) -> Generator[str, None, None]:
+        """Initialize unified Memory Manager with both STM and LTM (流式输出)"""
+        import time as time_module
+        start_time = time_module.time()
+
+        try:
+            yield self._send_event("log", "🚀 开始初始化 Memory Manager（统一实例，包含 STM 和 LTM）")
+            yield self._send_event("log", f"⏱️  开始时间: {datetime.now().strftime('%H:%M:%S')}")
+            yield self._send_event("log", "")
+            time_module.sleep(0.1)
+
+            yield self._send_event("log", f"📡 初始化 MemoryClient...")
+            time_module.sleep(0.1)
+            if not self.memory_client:
+                self.memory_client = MemoryClient(region_name=self.region_name)
+            if not self.bedrock_runtime:
+                import boto3
+                self.bedrock_runtime = boto3.client('bedrock-runtime', region_name=self.region_name)
+            elapsed = time_module.time() - start_time
+            yield self._send_event("log", f"✅ MemoryClient 初始化成功 [{elapsed:.2f}s]")
+            time_module.sleep(0.1)
+
+            yield self._send_event("log", f"📦 创建 MemorySessionManager (Memory ID: {memory_id[:20]}...)")
+            time_module.sleep(0.1)
+            manager = MemorySessionManager(
+                memory_id=memory_id,
+                region_name=self.region_name
+            )
+
+            # 保存到实例变量，供demo函数使用
+            # 由于是统一的Memory实例，STM和LTM使用同一个manager
+            self.stm_manager = manager
+            self.ltm_manager = manager
+
+            elapsed = time_module.time() - start_time
+            yield self._send_event("log", f"✅ Memory Manager 创建成功 [{elapsed:.2f}s]")
+            time_module.sleep(0.1)
+
+            yield self._send_event("log", "")
+            yield self._send_event("log", "💡 说明:")
+            yield self._send_event("log", "   - 该 Memory 实例包含:")
+            yield self._send_event("log", "     • STM: 原始对话事件（即时存储和检索）")
+            yield self._send_event("log", "     • LTM: 提取的语义记忆（5-15秒后异步生成）")
+            yield self._send_event("log", "   - 使用同一个 manager 实例同时访问 STM 和 LTM")
+            time_module.sleep(0.1)
+
+            elapsed = time_module.time() - start_time
+            yield self._send_event("result", {
+                "success": True,
+                "memory_id": memory_id,
+                "elapsed_time": f"{elapsed:.2f}s",
+                "message": f"✅ Memory Manager 初始化成功 (用时 {elapsed:.2f}s)"
+            })
+
+        except Exception as e:
+            elapsed = time_module.time() - start_time
+            yield self._send_event("log", f"❌ 初始化失败: {str(e)} [{elapsed:.2f}s]")
+            yield self._send_event("result", {
+                "success": False,
+                "elapsed_time": f"{elapsed:.2f}s",
+                "message": f"初始化失败: {str(e)}"
+            })
+
     def initialize_stream(self, stm_memory_id: str = None, ltm_memory_id: str = None) -> Generator[str, None, None]:
-        """Initialize Memory Managers (流式输出)"""
+        """Initialize Memory Managers (流式输出) - deprecated, use initialize_stream_unified"""
         import time as time_module
         start_time = time_module.time()
 
@@ -200,7 +263,7 @@ class AgentCoreMemoryAPI:
                     system_prompt += f"\n\n相关记忆上下文:\n{context}"
 
                 response = self.bedrock_runtime.converse_stream(
-                    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                    modelId="us.anthropic.claude-haiku-4-5-20251001-v1:0",
                     messages=[
                         {
                             "role": "user",
@@ -448,104 +511,95 @@ class AgentCoreMemoryAPI:
                 "message": f"错误: {str(e)}"
             }
 
-    def demo_combined(self, user_question: str, actor_id: str) -> Dict[str, Any]:
-        """Combined Demo: STM + LTM"""
+        """STM Demo - 步骤 1: 存储第一条消息 (流式输出)"""
+        import time as time_module
+        start_time = time_module.time()
+
         try:
-            if not self.stm_manager or not self.ltm_manager:
-                return {
+            yield self._send_event("log", "🚀 开始 STM Demo - 步骤 1: 存储第一条对话")
+            yield self._send_event("log", "")
+            time_module.sleep(0.1)
+
+            if not self.stm_manager:
+                yield self._send_event("log", "❌ 请先初始化 Memory Manager")
+                yield self._send_event("result", {
                     "success": False,
                     "message": "请先初始化 Memory Manager"
-                }
+                })
+                return
 
-            session_id = f"combined-{int(time.time())}"
+            session_id = f"stm-{int(time.time())}"
 
-            # 1. 从 LTM 获取长期记忆
-            ltm_memories = self.ltm_manager.search_long_term_memories(
-                query=user_question,
-                namespace_prefix="/",
-                top_k=3
-            )
+            # 不再发送代码片段，页面已经有静态代码示例了
+            # 直接开始执行步骤
 
-            # 2. 从 STM 获取会话历史 (如果有的话)
-            stm_turns = []
-            try:
-                stm_turns = self.stm_manager.get_last_k_turns(
-                    actor_id=actor_id,
-                    session_id=session_id,
-                    k=3
-                )
-            except:
-                pass
+            yield self._send_event("log", f"📝 用户消息: {user_message}")
+            yield self._send_event("log", f"👤 Actor ID: {actor_id}")
+            yield self._send_event("log", f"🔗 Session ID: {session_id}")
+            yield self._send_event("log", "")
+            time_module.sleep(0.1)
 
-            # 3. 构建综合上下文
-            context_parts = []
-            ltm_list = []
-            stm_list = []
+            # 调用 LLM (流式响应)
+            yield self._send_event("log", "🤖 调用 LLM 生成回复...")
+            time_module.sleep(0.1)
 
-            if ltm_memories:
-                ltm_lines = []
-                for memory in ltm_memories:
-                    content = memory.get('content', {})
-                    if isinstance(content, dict):
-                        text = content.get('text', '')
-                    else:
-                        text = str(content)
-                    ltm_lines.append(f"- {text}")
-                    ltm_list.append(text)
+            api_start = time_module.time()
+            assistant_response = ""
+            for chunk in self.call_llm_stream(user_message):
+                assistant_response += chunk
+                # Stream partial response to user
+                yield self._send_event("log", f"💬 {chunk}")
+            api_elapsed = time_module.time() - api_start
 
-                if ltm_lines:
-                    context_parts.append("长期记忆 (跨会话):\n" + "\n".join(ltm_lines))
+            yield self._send_event("log", "")
+            yield self._send_event("log", f"✅ LLM 回复完成")
+            yield self._send_event("log", f"   ⏱️  LLM 耗时: {api_elapsed:.2f}秒")
+            yield self._send_event("log", "")
+            time_module.sleep(0.1)
 
-            if stm_turns:
-                stm_lines = []
-                for turn in stm_turns:
-                    for msg in turn:
-                        role = "用户" if msg.get('role') == MessageRole.USER.value else "助手"
-                        text = msg.get('content', {}).get('text', '')
-                        stm_lines.append(f"{role}: {text}")
-                        stm_list.append({"role": role, "text": text})
-
-                if stm_lines:
-                    context_parts.append("会话历史 (当前会话):\n" + "\n".join(stm_lines))
-
-            context = "\n\n".join(context_parts)
-
-            # 4. 调用 LLM
-            assistant_response = self.call_llm(user_question, context)
-
-            # 5. 同时存储到 STM 和 LTM
-            messages = [
-                ConversationalMessage(user_question, MessageRole.USER),
-                ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
-            ]
+            # 存储到 STM
+            yield self._send_event("log", "💾 存储对话到 STM...")
+            time_module.sleep(0.1)
 
             self.stm_manager.add_turns(
                 actor_id=actor_id,
                 session_id=session_id,
-                messages=messages
+                messages=[
+                    ConversationalMessage(user_message, MessageRole.USER),
+                    ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
+                ]
             )
 
-            self.ltm_manager.add_turns(
-                actor_id=actor_id,
-                session_id=session_id,
-                messages=messages
-            )
+            yield self._send_event("log", "✅ 已存储到 Short-term Memory")
+            yield self._send_event("log", f"📊 Session ID: {session_id}")
+            time_module.sleep(0.05)
 
-            return {
+            total_elapsed = time_module.time() - start_time
+            yield self._send_event("log", "")
+            yield self._send_event("log", f"⏱️  总耗时: {total_elapsed:.2f}秒")
+            yield self._send_event("log", "")
+            yield self._send_event("log", "✨ 提示: 请继续执行步骤 2，询问相关问题测试 STM 的记忆能力")
+
+            yield self._send_event("result", {
                 "success": True,
                 "session_id": session_id,
-                "user_question": user_question,
+                "actor_id": actor_id,
+                "user_message": user_message,
                 "assistant_response": assistant_response,
-                "ltm_memories": ltm_list,
-                "stm_history": stm_list,
-                "message": "综合使用 STM + LTM"
-            }
+                "elapsed_time": f"{total_elapsed:.2f}s",
+                "message": "已存储到 Short-term Memory"
+            })
 
         except Exception as e:
-            return {
+            elapsed = time_module.time() - start_time
+            yield self._send_event("log", "")
+            yield self._send_event("log", f"❌ 错误: {str(e)}")
+            yield self._send_event("log", f"⏱️  失败耗时: {elapsed:.2f}秒")
+            yield self._send_event("result", {
                 "success": False,
+                "elapsed_time": f"{elapsed:.2f}s",
                 "message": f"错误: {str(e)}"
-            }
+            })
 
     def demo_stm_step1_stream(self, user_message: str, actor_id: str) -> Generator[str, None, None]:
         """STM Demo - 步骤 1: 存储第一条消息 (流式输出)"""
@@ -637,6 +691,7 @@ class AgentCoreMemoryAPI:
                 "elapsed_time": f"{elapsed:.2f}s",
                 "message": f"错误: {str(e)}"
             })
+
 
     def demo_stm_step2_stream(self, user_message: str, session_id: str, actor_id: str) -> Generator[str, None, None]:
         """STM Demo - 步骤 2: 基于历史对话回答 (流式输出)"""
@@ -998,533 +1053,6 @@ class AgentCoreMemoryAPI:
                 "message": f"错误: {str(e)}"
             })
 
-    def demo_combined_stream(self, user_question: str, actor_id: str) -> Generator[str, None, None]:
-        """Combined Demo: STM + LTM (流式输出)"""
-        import time as time_module
-        start_time = time_module.time()
-
-        try:
-            yield self._send_event("log", "🚀 开始 Combined Demo: STM + LTM 综合演示")
-            yield self._send_event("log", "")
-            time_module.sleep(0.1)
-
-            if not self.stm_manager or not self.ltm_manager:
-                yield self._send_event("log", "❌ 请先初始化 Memory Manager")
-                yield self._send_event("result", {
-                    "success": False,
-                    "message": "请先初始化 Memory Manager"
-                })
-                return
-
-            session_id = f"combined-{int(time.time())}"
-
-            # 不再发送代码片段，页面已经有静态代码示例了
-            # 直接开始执行步骤
-
-            yield self._send_event("log", f"📝 用户问题: {user_question}")
-            yield self._send_event("log", f"🔗 Session ID: {session_id}")
-            yield self._send_event("log", "")
-            time_module.sleep(0.1)
-
-            # 1. 从 LTM 获取长期记忆
-            yield self._send_event("log", "🔍 从 LTM 检索长期记忆...")
-            time_module.sleep(0.1)
-
-            ltm_memories = self.ltm_manager.search_long_term_memories(
-                query=user_question,
-                namespace_prefix="/",
-                top_k=3
-            )
-
-            yield self._send_event("log", f"✅ 检索到 {len(ltm_memories)} 条长期记忆")
-            time_module.sleep(0.05)
-
-            # 2. 从 STM 获取会话历史
-            yield self._send_event("log", "🔍 从 STM 检索会话历史...")
-            time_module.sleep(0.1)
-
-            stm_turns = []
-            try:
-                stm_turns = self.stm_manager.get_last_k_turns(
-                    actor_id=actor_id,
-                    session_id=session_id,
-                    k=3
-                )
-                yield self._send_event("log", f"✅ 检索到 {len(stm_turns)} 轮会话历史")
-            except:
-                yield self._send_event("log", "⚠️  当前会话暂无历史记录")
-
-            yield self._send_event("log", "")
-            time_module.sleep(0.1)
-
-            # 3. 构建综合上下文
-            yield self._send_event("log", "🔧 构建综合上下文...")
-            time_module.sleep(0.1)
-
-            context_parts = []
-            ltm_list = []
-            stm_list = []
-
-            if ltm_memories:
-                ltm_lines = []
-                for memory in ltm_memories:
-                    content = memory.get('content', {})
-                    if isinstance(content, dict):
-                        text = content.get('text', '')
-                    else:
-                        text = str(content)
-                    ltm_lines.append(f"- {text}")
-                    ltm_list.append(text)
-
-                if ltm_lines:
-                    context_parts.append("长期记忆 (跨会话):\n" + "\n".join(ltm_lines))
-
-            if stm_turns:
-                stm_lines = []
-                for turn in stm_turns:
-                    for msg in turn:
-                        role = "用户" if msg.get('role') == MessageRole.USER.value else "助手"
-                        text = msg.get('content', {}).get('text', '')
-                        stm_lines.append(f"{role}: {text}")
-                        stm_list.append({"role": role, "text": text})
-
-                if stm_lines:
-                    context_parts.append("会话历史 (当前会话):\n" + "\n".join(stm_lines))
-
-            context = "\n\n".join(context_parts)
-
-            yield self._send_event("log", "✅ 综合上下文构建完成")
-            yield self._send_event("log", "")
-            time_module.sleep(0.1)
-
-            # 4. 调用 LLM (流式响应)
-            yield self._send_event("log", "🤖 调用 LLM 生成回复 (基于综合记忆)...")
-            time_module.sleep(0.1)
-
-            api_start = time_module.time()
-            assistant_response = ""
-            for chunk in self.call_llm_stream(user_question, context):
-                assistant_response += chunk
-                yield self._send_event("log", f"💬 {chunk}")
-            api_elapsed = time_module.time() - api_start
-
-            yield self._send_event("log", "")
-            yield self._send_event("log", f"✅ LLM 回复完成")
-            yield self._send_event("log", f"   ⏱️  LLM 耗时: {api_elapsed:.2f}秒")
-            yield self._send_event("log", "")
-            time_module.sleep(0.1)
-
-            # 5. 同时存储到 STM 和 LTM
-            yield self._send_event("log", "💾 存储对话到 STM 和 LTM...")
-            time_module.sleep(0.1)
-
-            messages = [
-                ConversationalMessage(user_question, MessageRole.USER),
-                ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
-            ]
-
-            self.stm_manager.add_turns(
-                actor_id=actor_id,
-                session_id=session_id,
-                messages=messages
-            )
-
-            self.ltm_manager.add_turns(
-                actor_id=actor_id,
-                session_id=session_id,
-                messages=messages
-            )
-
-            yield self._send_event("log", "✅ 已同时存储到 STM 和 LTM")
-            time_module.sleep(0.05)
-
-            total_elapsed = time_module.time() - start_time
-            yield self._send_event("log", "")
-            yield self._send_event("log", f"⏱️  总耗时: {total_elapsed:.2f}秒")
-            yield self._send_event("log", "")
-            yield self._send_event("log", "✨ 综合演示完成: 利用了短期记忆和长期记忆的优势")
-
-            yield self._send_event("result", {
-                "success": True,
-                "session_id": session_id,
-                "user_question": user_question,
-                "assistant_response": assistant_response,
-                "ltm_memories": ltm_list,
-                "stm_history": stm_list,
-                "elapsed_time": f"{total_elapsed:.2f}s",
-                "message": "综合使用 STM + LTM"
-            })
-
-        except Exception as e:
-            elapsed = time_module.time() - start_time
-            yield self._send_event("log", "")
-            yield self._send_event("log", f"❌ 错误: {str(e)}")
-            yield self._send_event("log", f"⏱️  失败耗时: {elapsed:.2f}秒")
-            yield self._send_event("result", {
-                "success": False,
-                "elapsed_time": f"{elapsed:.2f}s",
-                "message": f"错误: {str(e)}"
-            })
-
-    def create_stm_memory_stream(self, name: str = None) -> Generator[str, None, None]:
-        """创建 Short-Term Memory (流式输出)"""
-        import time as time_module
-        start_time = time_module.time()
-
-        try:
-            yield self._send_event("log", "🚀 开始创建 Short-Term Memory (STM)")
-            yield self._send_event("log", f"⏱️  开始时间: {datetime.now().strftime('%H:%M:%S')}")
-            yield self._send_event("log", "")
-            time_module.sleep(0.1)  # 确保流式输出
-
-            if not self.memory_client:
-                yield self._send_event("log", "📡 初始化 MemoryClient...")
-                time_module.sleep(0.1)
-                self.memory_client = MemoryClient(region_name=self.region_name)
-                elapsed = time_module.time() - start_time
-                yield self._send_event("log", f"✅ MemoryClient 初始化成功 (region: {self.region_name}) [{elapsed:.2f}s]")
-                time_module.sleep(0.1)
-
-            if not name:
-                name = f"AgentCore_STM_Demo_{uuid.uuid4().hex[:8]}"
-                elapsed = time_module.time() - start_time
-                yield self._send_event("log", f"📝 生成 Memory 名称: {name} [{elapsed:.2f}s]")
-                time_module.sleep(0.1)
-
-            # 构建代码片段
-            code_snippet = f'''import time
-from datetime import datetime
-from bedrock_agentcore.memory import MemoryClient
-
-print("🚀 开始创建 Short-Term Memory (STM)")
-print(f"⏱️  开始时间: {{datetime.now().strftime('%H:%M:%S')}}")
-print()
-
-start_time = time.time()
-
-# 初始化 Memory Client
-print("📡 初始化 MemoryClient...")
-client = MemoryClient(region_name="{self.region_name}")
-elapsed = time.time() - start_time
-print(f"✅ MemoryClient 初始化成功 (region: {self.region_name}) [{{elapsed:.2f}}s]")
-
-# 生成 Memory 名称
-print(f"📝 生成 Memory 名称: {name}")
-print()
-
-# 创建 STM (不配置策略)
-print("⏳ 调用 AWS Bedrock AgentCore API 创建 Memory...")
-print(f"   - 名称: {name}")
-print("   - 策略: 无 (STM 不需要提取策略)")
-print("   - 事件保留期: 7 天")
-print()
-
-elapsed = time.time() - start_time
-print(f"⏳ 正在创建，请稍候... [{{elapsed:.2f}}s]")
-
-api_start = time.time()
-stm = client.create_memory_and_wait(
-    name="{name}",
-    strategies=[],  # 空列表 = 不配置提取策略
-    description="Short-term memory demo - 仅存储原始对话",
-    event_expiry_days=7  # 保存7天
-)
-api_elapsed = time.time() - api_start
-
-print()
-print("✅ STM 创建成功!")
-print(f"   - Memory ID: {{stm['id']}}")
-print(f"   - 状态: {{stm.get('status', 'ACTIVE')}}")
-print(f"   - 创建时间: {{stm.get('createdAt', 'N/A')}}")
-print(f"   - API 耗时: {{api_elapsed:.2f}}秒")
-
-total_elapsed = time.time() - start_time
-print()
-print(f"⏱️  总耗时: {{total_elapsed:.2f}}秒")
-print()
-print("💡 提示: STM 适用于会话内的短期记忆，即时存储，无需等待")'''
-
-            yield self._send_event("code", code_snippet)
-            time_module.sleep(0.1)
-
-            yield self._send_event("log", "")
-            yield self._send_event("log", "⏳ 调用 AWS Bedrock AgentCore API 创建 Memory...")
-            time_module.sleep(0.1)
-            yield self._send_event("log", f"   - 名称: {name}")
-            time_module.sleep(0.05)
-            yield self._send_event("log", f"   - 策略: 无 (STM 不需要提取策略)")
-            time_module.sleep(0.05)
-            yield self._send_event("log", f"   - 事件保留期: 7 天")
-            time_module.sleep(0.05)
-            yield self._send_event("log", "")
-
-            elapsed = time_module.time() - start_time
-            yield self._send_event("log", f"⏳ 正在创建，请稍候... [{elapsed:.2f}s]")
-            time_module.sleep(0.1)
-
-            # 创建不带策略的 Memory
-            api_start = time_module.time()
-            stm = self.memory_client.create_memory_and_wait(
-                name=name,
-                strategies=[],
-                description="Short-term memory demo - 仅存储原始对话",
-                event_expiry_days=7
-            )
-            api_elapsed = time_module.time() - api_start
-
-            yield self._send_event("log", "")
-            time_module.sleep(0.1)
-            yield self._send_event("log", f"✅ STM 创建成功!")
-            time_module.sleep(0.05)
-            yield self._send_event("log", f"   - Memory ID: {stm['id']}")
-            time_module.sleep(0.05)
-            yield self._send_event("log", f"   - 状态: {stm.get('status', 'ACTIVE')}")
-            time_module.sleep(0.05)
-            yield self._send_event("log", f"   - 创建时间: {stm.get('createdAt', 'N/A')}")
-            time_module.sleep(0.05)
-            yield self._send_event("log", f"   - API 耗时: {api_elapsed:.2f}秒")
-            time_module.sleep(0.05)
-
-            total_elapsed = time_module.time() - start_time
-            yield self._send_event("log", "")
-            yield self._send_event("log", f"⏱️  总耗时: {total_elapsed:.2f}秒")
-            time_module.sleep(0.05)
-            yield self._send_event("log", "")
-            yield self._send_event("log", "💡 提示: STM 适用于会话内的短期记忆，即时存储，无需等待")
-
-            yield self._send_event("result", {
-                "success": True,
-                "memory_id": stm['id'],
-                "name": stm['name'],
-                "elapsed_time": f"{total_elapsed:.2f}s",
-                "message": f"STM 创建成功: {stm['id']}"
-            })
-
-        except Exception as e:
-            elapsed = time_module.time() - start_time
-            yield self._send_event("log", f"")
-            yield self._send_event("log", f"❌ STM 创建失败: {str(e)}")
-            yield self._send_event("log", f"⏱️  失败耗时: {elapsed:.2f}秒")
-            yield self._send_event("result", {
-                "success": False,
-                "elapsed_time": f"{elapsed:.2f}s",
-                "message": f"STM 创建失败: {str(e)}"
-            })
-
-    def create_ltm_memory_stream(self, name: str = None) -> Generator[str, None, None]:
-        """创建 Long-Term Memory (流式输出)"""
-        import time as time_module
-        start_time = time_module.time()
-
-        try:
-            yield self._send_event("log", "🚀 开始创建 Long-Term Memory (LTM)")
-            yield self._send_event("log", f"⏱️  开始时间: {datetime.now().strftime('%H:%M:%S')}")
-            yield self._send_event("log", "")
-            time_module.sleep(0.1)
-
-            if not self.memory_client:
-                yield self._send_event("log", "📡 初始化 MemoryClient...")
-                time_module.sleep(0.1)
-                self.memory_client = MemoryClient(region_name=self.region_name)
-                elapsed = time_module.time() - start_time
-                yield self._send_event("log", f"✅ MemoryClient 初始化成功 (region: {self.region_name}) [{elapsed:.2f}s]")
-                time_module.sleep(0.1)
-
-            if not name:
-                name = f"AgentCore_LTM_Demo_{uuid.uuid4().hex[:8]}"
-                elapsed = time_module.time() - start_time
-                yield self._send_event("log", f"📝 生成 Memory 名称: {name} [{elapsed:.2f}s]")
-                time_module.sleep(0.1)
-
-            # 构建代码片段
-            code_snippet = f'''import time
-from datetime import datetime
-from bedrock_agentcore.memory import MemoryClient
-
-print("🚀 开始创建 Long-Term Memory (LTM)")
-print(f"⏱️  开始时间: {{datetime.now().strftime('%H:%M:%S')}}")
-print()
-
-start_time = time.time()
-
-# 初始化 Memory Client
-print("📡 初始化 MemoryClient...")
-client = MemoryClient(region_name="{self.region_name}")
-elapsed = time.time() - start_time
-print(f"✅ MemoryClient 初始化成功 (region: {self.region_name}) [{{elapsed:.2f}}s]")
-
-# 生成 Memory 名称
-print(f"📝 生成 Memory 名称: {name}")
-print()
-
-# 创建 LTM (配置语义和偏好策略)
-print("⏳ 调用 AWS Bedrock AgentCore API 创建 Memory...")
-print(f"   - 名称: {name}")
-print("   - 策略: 2 个 (语义记忆 + 用户偏好)")
-print("   - 事件保留期: 30 天")
-print()
-print("⚙️ 配置策略 1: Semantic Memory Strategy")
-print("   - 自动提取重要事实和信息")
-print("   - 使用 LLM 进行语义分析")
-print()
-print("⚙️ 配置策略 2: User Preference Memory Strategy")
-print("   - 自动提取用户偏好")
-print("   - 支持跨会话记忆")
-print()
-
-elapsed = time.time() - start_time
-print(f"⏳ 正在创建并配置策略，请稍候... [{{elapsed:.2f}}s]")
-
-api_start = time.time()
-ltm = client.create_memory_and_wait(
-    name="{name}",
-    strategies=[
-        # 语义记忆策略: 提取重要的事实和信息
-        {{
-            "semanticMemoryStrategy": {{
-                "name": "semantic_facts",
-                "description": "提取用户提到的重要事实和信息",
-                "namespaces": ["/strategies/{{memoryStrategyId}}/actors/{{actorId}}"]
-            }}
-        }},
-        # 用户偏好策略: 提取用户的喜好和偏好
-        {{
-            "userPreferenceMemoryStrategy": {{
-                "name": "user_preferences",
-                "description": "提取用户的偏好、喜好和习惯",
-                "namespaces": ["/strategies/{{memoryStrategyId}}/actors/{{actorId}}"]
-            }}
-        }}
-    ],
-    description="Long-term memory demo - 智能提取和跨会话记忆",
-    event_expiry_days=30  # 保存30天
-)
-api_elapsed = time.time() - api_start
-
-print()
-print("✅ LTM 创建成功!")
-print(f"   - Memory ID: {{ltm['id']}}")
-print(f"   - 状态: {{ltm.get('status', 'ACTIVE')}}")
-print(f"   - 创建时间: {{ltm.get('createdAt', 'N/A')}}")
-print(f"   - 策略: (查看详细信息)")
-print(f"   - API 耗时: {{api_elapsed:.2f}}秒")
-
-total_elapsed = time.time() - start_time
-print()
-print(f"⏱️  总耗时: {{total_elapsed:.2f}}秒")
-print()
-print("💡 提示: LTM 会异步提取记忆，通常需要 10-15 秒完成")'''
-
-            yield self._send_event("code", code_snippet)
-            time_module.sleep(0.1)
-
-            yield self._send_event("log", "")
-            yield self._send_event("log", "⏳ 调用 AWS Bedrock AgentCore API 创建 Memory...")
-            time_module.sleep(0.1)
-            yield self._send_event("log", f"   - 名称: {name}")
-            time_module.sleep(0.05)
-            yield self._send_event("log", f"   - 策略: 2 个 (语义记忆 + 用户偏好)")
-            time_module.sleep(0.05)
-            yield self._send_event("log", f"   - 事件保留期: 30 天")
-            time_module.sleep(0.05)
-            yield self._send_event("log", "")
-            yield self._send_event("log", "⚙️ 配置策略 1: Semantic Memory Strategy")
-            time_module.sleep(0.05)
-            yield self._send_event("log", "   - 自动提取重要事实和信息")
-            time_module.sleep(0.05)
-            yield self._send_event("log", "   - 使用 LLM 进行语义分析")
-            time_module.sleep(0.05)
-            yield self._send_event("log", "")
-            yield self._send_event("log", "⚙️ 配置策略 2: User Preference Memory Strategy")
-            time_module.sleep(0.05)
-            yield self._send_event("log", "   - 自动提取用户偏好")
-            time_module.sleep(0.05)
-            yield self._send_event("log", "   - 支持跨会话记忆")
-            time_module.sleep(0.05)
-            yield self._send_event("log", "")
-
-            elapsed = time_module.time() - start_time
-            yield self._send_event("log", f"⏳ 正在创建并配置策略，请稍候... [{elapsed:.2f}s]")
-            time_module.sleep(0.1)
-
-            # 创建带策略的 Memory
-            api_start = time_module.time()
-            ltm = self.memory_client.create_memory_and_wait(
-                name=name,
-                strategies=[
-                    {
-                        "semanticMemoryStrategy": {
-                            "name": "semantic_facts",
-                            "description": "提取用户提到的重要事实和信息",
-                            "namespaces": ["/strategies/{memoryStrategyId}/actors/{actorId}"]
-                        }
-                    },
-                    {
-                        "userPreferenceMemoryStrategy": {
-                            "name": "user_preferences",
-                            "description": "提取用户的偏好、喜好和习惯",
-                            "namespaces": ["/strategies/{memoryStrategyId}/actors/{actorId}"]
-                        }
-                    }
-                ],
-                description="Long-term memory demo - 智能提取和跨会话记忆",
-                event_expiry_days=30
-            )
-            api_elapsed = time_module.time() - api_start
-
-            yield self._send_event("log", "")
-            time_module.sleep(0.1)
-            yield self._send_event("log", f"✅ LTM 创建成功!")
-            time_module.sleep(0.05)
-            yield self._send_event("log", f"   - Memory ID: {ltm['id']}")
-            time_module.sleep(0.05)
-            yield self._send_event("log", f"   - 状态: {ltm.get('status', 'ACTIVE')}")
-            time_module.sleep(0.05)
-            yield self._send_event("log", f"   - 创建时间: {ltm.get('createdAt', 'N/A')}")
-            time_module.sleep(0.05)
-
-            # 提取策略信息
-            strategies = []
-            for strategy in ltm.get('strategies', []):
-                strategy_info = {
-                    "name": strategy.get('name', 'N/A'),
-                    "type": strategy.get('type', 'N/A'),
-                    "strategy_id": strategy.get('strategyId', 'N/A')
-                }
-                strategies.append(strategy_info)
-                yield self._send_event("log", f"   - 策略: {strategy_info['name']} ({strategy_info['type']})")
-                time_module.sleep(0.05)
-
-            yield self._send_event("log", f"   - API 耗时: {api_elapsed:.2f}秒")
-            time_module.sleep(0.05)
-
-            total_elapsed = time_module.time() - start_time
-            yield self._send_event("log", "")
-            yield self._send_event("log", f"⏱️  总耗时: {total_elapsed:.2f}秒")
-            time_module.sleep(0.05)
-            yield self._send_event("log", "")
-            yield self._send_event("log", "💡 提示: LTM 会异步提取记忆，通常需要 10-15 秒完成")
-
-            yield self._send_event("result", {
-                "success": True,
-                "memory_id": ltm['id'],
-                "name": ltm['name'],
-                "strategies": strategies,
-                "elapsed_time": f"{total_elapsed:.2f}s",
-                "message": f"LTM 创建成功: {ltm['id']}"
-            })
-
-        except Exception as e:
-            elapsed = time_module.time() - start_time
-            yield self._send_event("log", f"")
-            yield self._send_event("log", f"❌ LTM 创建失败: {str(e)}")
-            yield self._send_event("log", f"⏱️  失败耗时: {elapsed:.2f}秒")
-            yield self._send_event("result", {
-                "success": False,
-                "elapsed_time": f"{elapsed:.2f}s",
-                "message": f"LTM 创建失败: {str(e)}"
-            })
-
     def _send_event(self, event_type: str, data: Any) -> str:
         """格式化SSE事件"""
         if isinstance(data, (dict, list)):
@@ -1538,21 +1066,36 @@ print("💡 提示: LTM 会异步提取记忆，通常需要 10-15 秒完成")''
 
         return f"event: {event_type}\n{data_lines}\n\n"
 
-    def create_stm_memory(self, name: str = None) -> Dict[str, Any]:
-        """创建 Short-Term Memory (不配置策略)"""
+    def create_memory(self, name: str = None, username: str = None) -> Dict[str, Any]:
+        """创建 Memory (包含 STM 和 LTM 功能，配置提取策略)"""
         logs = []
         code_snippet = ""
 
         try:
-            logs.append("🚀 开始创建 Short-Term Memory (STM)")
+            logs.append("🚀 开始创建 Memory 资源（包含 STM 和 LTM 功能）")
 
             if not self.memory_client:
                 logs.append("📡 初始化 MemoryClient...")
                 self.memory_client = MemoryClient(region_name=self.region_name)
                 logs.append(f"✅ MemoryClient 初始化成功 (region: {self.region_name})")
 
+            # 检查用户是否已达到创建限制
+            if username:
+                user_memories = self.list_memories(username=username)
+                if user_memories['success']:
+                    total_count = user_memories.get('count', 0)
+                    if total_count >= 5:
+                        return {
+                            "success": False,
+                            "message": f"❌ 已达到 Memory 创建上限 (5个)。当前已有 {total_count} 个 Memory。",
+                            "code": "",
+                            "logs": [f"❌ 用户 {username} 已创建 {total_count} 个 Memory，已达到上限 (5个)"]
+                        }
+
+            # 添加用户前缀
             if not name:
-                name = f"AgentCore_STM_Demo_{uuid.uuid4().hex[:8]}"
+                base_name = f"Memory_{uuid.uuid4().hex[:8]}"
+                name = f"{username}_{base_name}" if username else base_name
                 logs.append(f"📝 生成 Memory 名称: {name}")
 
             # 构建代码片段
@@ -1561,79 +1104,8 @@ print("💡 提示: LTM 会异步提取记忆，通常需要 10-15 秒完成")''
 # 初始化 Memory Client
 client = MemoryClient(region_name="{self.region_name}")
 
-# 创建 STM (不配置策略)
-stm = client.create_memory_and_wait(
-    name="{name}",
-    strategies=[],  # 空列表 = 不配置提取策略
-    description="Short-term memory demo - 仅存储原始对话",
-    event_expiry_days=7  # 保存7天
-)
-
-print(f"STM 创建成功: {{stm['id']}}")'''
-
-            logs.append("⏳ 调用 AWS Bedrock AgentCore API 创建 Memory...")
-            logs.append(f"   - 名称: {name}")
-            logs.append(f"   - 策略: 无 (STM 不需要提取策略)")
-            logs.append(f"   - 事件保留期: 7 天")
-
-            # 创建不带策略的 Memory
-            stm = self.memory_client.create_memory_and_wait(
-                name=name,
-                strategies=[],  # 空列表 = 不配置提取策略
-                description="Short-term memory demo - 仅存储原始对话",
-                event_expiry_days=7  # 保存7天
-            )
-
-            logs.append(f"✅ STM 创建成功!")
-            logs.append(f"   - Memory ID: {stm['id']}")
-            logs.append(f"   - 状态: {stm.get('status', 'ACTIVE')}")
-            logs.append(f"   - 创建时间: {stm.get('createdAt', 'N/A')}")
-            logs.append("")
-            logs.append("💡 提示: STM 适用于会话内的短期记忆，即时存储，无需等待")
-
-            return {
-                "success": True,
-                "memory_id": stm['id'],
-                "name": stm['name'],
-                "code": code_snippet,
-                "logs": logs,
-                "message": f"STM 创建成功: {stm['id']}"
-            }
-
-        except Exception as e:
-            logs.append(f"❌ STM 创建失败: {str(e)}")
-            return {
-                "success": False,
-                "message": f"STM 创建失败: {str(e)}",
-                "code": code_snippet,
-                "logs": logs
-            }
-
-    def create_ltm_memory(self, name: str = None) -> Dict[str, Any]:
-        """创建 Long-Term Memory (配置语义和偏好策略)"""
-        logs = []
-        code_snippet = ""
-
-        try:
-            logs.append("🚀 开始创建 Long-Term Memory (LTM)")
-
-            if not self.memory_client:
-                logs.append("📡 初始化 MemoryClient...")
-                self.memory_client = MemoryClient(region_name=self.region_name)
-                logs.append(f"✅ MemoryClient 初始化成功 (region: {self.region_name})")
-
-            if not name:
-                name = f"AgentCore_LTM_Demo_{uuid.uuid4().hex[:8]}"
-                logs.append(f"📝 生成 Memory 名称: {name}")
-
-            # 构建代码片段
-            code_snippet = f'''from bedrock_agentcore.memory import MemoryClient
-
-# 初始化 Memory Client
-client = MemoryClient(region_name="{self.region_name}")
-
-# 创建 LTM (配置语义和偏好策略)
-ltm = client.create_memory_and_wait(
+# 创建 Memory (包含 STM 和 LTM 功能)
+memory = client.create_memory_and_wait(
     name="{name}",
     strategies=[
         # 语义记忆策略: 提取重要的事实和信息
@@ -1653,30 +1125,21 @@ ltm = client.create_memory_and_wait(
             }}
         }}
     ],
-    description="Long-term memory demo - 智能提取和跨会话记忆",
+    description="Memory with both STM (raw events) and LTM (extracted memories)",
     event_expiry_days=30  # 保存30天
 )
 
-print(f"LTM 创建成功: {{ltm['id']}}")'''
+print(f"Memory 创建成功: {{memory['id']}}")'''
 
             logs.append("⏳ 调用 AWS Bedrock AgentCore API 创建 Memory...")
             logs.append(f"   - 名称: {name}")
-            logs.append(f"   - 策略: 2 个 (语义记忆 + 用户偏好)")
+            logs.append(f"   - 策略: 语义记忆 + 用户偏好")
             logs.append(f"   - 事件保留期: 30 天")
-            logs.append("")
-            logs.append("⚙️ 配置策略 1: Semantic Memory Strategy")
-            logs.append("   - 自动提取重要事实和信息")
-            logs.append("   - 使用 LLM 进行语义分析")
-            logs.append("")
-            logs.append("⚙️ 配置策略 2: User Preference Memory Strategy")
-            logs.append("   - 自动提取用户偏好")
-            logs.append("   - 支持跨会话记忆")
 
             # 创建带策略的 Memory
-            ltm = self.memory_client.create_memory_and_wait(
+            memory = self.memory_client.create_memory_and_wait(
                 name=name,
                 strategies=[
-                    # 语义记忆策略: 提取重要的事实和信息
                     {
                         "semanticMemoryStrategy": {
                             "name": "semantic_facts",
@@ -1684,7 +1147,6 @@ print(f"LTM 创建成功: {{ltm['id']}}")'''
                             "namespaces": ["/strategies/{memoryStrategyId}/actors/{actorId}"]
                         }
                     },
-                    # 用户偏好策略: 提取用户的喜好和偏好
                     {
                         "userPreferenceMemoryStrategy": {
                             "name": "user_preferences",
@@ -1693,51 +1155,155 @@ print(f"LTM 创建成功: {{ltm['id']}}")'''
                         }
                     }
                 ],
-                description="Long-term memory demo - 智能提取和跨会话记忆",
-                event_expiry_days=30  # 保存30天
+                description="Memory with both STM (raw events) and LTM (extracted memories)",
+                event_expiry_days=30
             )
 
+            logs.append(f"✅ Memory 创建成功!")
+            logs.append(f"   - Memory ID: {memory['id']}")
+            logs.append(f"   - 状态: {memory.get('status', 'ACTIVE')}")
+            logs.append(f"   - 策略数量: {len(memory.get('strategies', []))}")
             logs.append("")
-            logs.append(f"✅ LTM 创建成功!")
-            logs.append(f"   - Memory ID: {ltm['id']}")
-            logs.append(f"   - 状态: {ltm.get('status', 'ACTIVE')}")
-            logs.append(f"   - 创建时间: {ltm.get('createdAt', 'N/A')}")
-
-            # 提取策略信息
-            strategies = []
-            for strategy in ltm.get('strategies', []):
-                strategy_info = {
-                    "name": strategy.get('name', 'N/A'),
-                    "type": strategy.get('type', 'N/A'),
-                    "strategy_id": strategy.get('strategyId', 'N/A')
-                }
-                strategies.append(strategy_info)
-                logs.append(f"   - 策略: {strategy_info['name']} ({strategy_info['type']})")
-
-            logs.append("")
-            logs.append("💡 提示: LTM 会异步提取记忆，通常需要 10-15 秒完成")
+            logs.append("💡 说明:")
+            logs.append("   - STM: 原始对话事件会即时存储")
+            logs.append("   - LTM: 5-15秒后异步提取语义和偏好信息")
 
             return {
                 "success": True,
-                "memory_id": ltm['id'],
-                "name": ltm['name'],
-                "strategies": strategies,
+                "memory_id": memory['id'],
+                "name": memory['name'],
                 "code": code_snippet,
                 "logs": logs,
-                "message": f"LTM 创建成功: {ltm['id']}"
+                "strategies": [
+                    {
+                        "name": s.get("name", "N/A"),
+                        "type": s.get("type", "N/A"),
+                        "strategy_id": s.get("strategyId", "N/A")
+                    }
+                    for s in memory.get('strategies', [])
+                ],
+                "message": f"Memory 创建成功: {memory['id']}"
             }
 
         except Exception as e:
-            logs.append(f"❌ LTM 创建失败: {str(e)}")
+            logs.append(f"❌ Memory 创建失败: {str(e)}")
             return {
                 "success": False,
-                "message": f"LTM 创建失败: {str(e)}",
+                "message": f"Memory 创建失败: {str(e)}",
                 "code": code_snippet,
                 "logs": logs
             }
 
-    def list_memories(self) -> Dict[str, Any]:
-        """列出所有 Memory 资源"""
+    def create_memory_stream(self, name: str = None, username: str = None) -> Generator[str, None, None]:
+        """创建 Memory (流式输出，包含 STM 和 LTM 功能)"""
+        import time as time_module
+        start_time = time_module.time()
+
+        try:
+            yield self._send_event("log", "🚀 开始创建 Memory 资源（包含 STM 和 LTM 功能）")
+            yield self._send_event("log", f"⏱️  开始时间: {datetime.now().strftime('%H:%M:%S')}")
+            yield self._send_event("log", "")
+            time_module.sleep(0.1)
+
+            if not self.memory_client:
+                yield self._send_event("log", "📡 初始化 MemoryClient...")
+                time_module.sleep(0.1)
+                self.memory_client = MemoryClient(region_name=self.region_name)
+                elapsed = time_module.time() - start_time
+                yield self._send_event("log", f"✅ MemoryClient 初始化成功 (region: {self.region_name}) [{elapsed:.2f}s]")
+                time_module.sleep(0.1)
+
+            # 检查用户是否已达到创建限制
+            if username:
+                yield self._send_event("log", f"🔍 检查用户 {username} 的 Memory 数量...")
+                user_memories = self.list_memories(username=username)
+                if user_memories['success']:
+                    total_count = user_memories.get('count', 0)
+                    yield self._send_event("log", f"   当前已有 {total_count} 个 Memory (上限: 5)")
+                    if total_count >= 5:
+                        yield self._send_event("log", f"❌ 已达到 Memory 创建上限 (5个)")
+                        yield self._send_event("result", {
+                            "success": False,
+                            "message": f"❌ 已达到 Memory 创建上限 (5个)。当前已有 {total_count} 个 Memory。"
+                        })
+                        return
+                time_module.sleep(0.1)
+
+            # 添加用户前缀
+            if not name:
+                base_name = f"Memory_{uuid.uuid4().hex[:8]}"
+                name = f"{username}_{base_name}" if username else base_name
+                elapsed = time_module.time() - start_time
+                yield self._send_event("log", f"📝 生成 Memory 名称: {name} [{elapsed:.2f}s]")
+                time_module.sleep(0.1)
+
+            elapsed = time_module.time() - start_time
+            yield self._send_event("log", f"⏳ 调用 AWS Bedrock AgentCore API 创建 Memory... [{elapsed:.2f}s]")
+            yield self._send_event("log", f"   - 名称: {name}")
+            yield self._send_event("log", f"   - 策略: 语义记忆 + 用户偏好")
+            yield self._send_event("log", f"   - 事件保留期: 30 天")
+            time_module.sleep(0.1)
+
+            # 创建带策略的 Memory
+            memory = self.memory_client.create_memory_and_wait(
+                name=name,
+                strategies=[
+                    {
+                        "semanticMemoryStrategy": {
+                            "name": "semantic_facts",
+                            "description": "提取用户提到的重要事实和信息",
+                            "namespaces": ["/strategies/{memoryStrategyId}/actors/{actorId}"]
+                        }
+                    },
+                    {
+                        "userPreferenceMemoryStrategy": {
+                            "name": "user_preferences",
+                            "description": "提取用户的偏好、喜好和习惯",
+                            "namespaces": ["/strategies/{memoryStrategyId}/actors/{actorId}"]
+                        }
+                    }
+                ],
+                description="Memory with both STM (raw events) and LTM (extracted memories)",
+                event_expiry_days=30
+            )
+
+            elapsed = time_module.time() - start_time
+            yield self._send_event("log", f"✅ Memory 创建成功! [{elapsed:.2f}s]")
+            yield self._send_event("log", f"   - Memory ID: {memory['id']}")
+            yield self._send_event("log", f"   - 状态: {memory.get('status', 'ACTIVE')}")
+            yield self._send_event("log", f"   - 策略数量: {len(memory.get('strategies', []))}")
+            yield self._send_event("log", "")
+            yield self._send_event("log", "💡 说明:")
+            yield self._send_event("log", "   - STM: 原始对话事件会即时存储")
+            yield self._send_event("log", "   - LTM: 5-15秒后异步提取语义和偏好信息")
+
+            yield self._send_event("result", {
+                "success": True,
+                "memory_id": memory['id'],
+                "name": memory['name'],
+                "strategies": [
+                    {
+                        "name": s.get("name", "N/A"),
+                        "type": s.get("type", "N/A"),
+                        "strategy_id": s.get("strategyId", "N/A")
+                    }
+                    for s in memory.get('strategies', [])
+                ],
+                "message": f"Memory 创建成功: {memory['id']}",
+                "elapsed_time": f"{elapsed:.2f}s"
+            })
+
+        except Exception as e:
+            elapsed = time_module.time() - start_time
+            yield self._send_event("log", f"❌ Memory 创建失败: {str(e)} [{elapsed:.2f}s]")
+            yield self._send_event("result", {
+                "success": False,
+                "elapsed_time": f"{elapsed:.2f}s",
+                "message": f"Memory 创建失败: {str(e)}"
+            })
+
+    def list_memories(self, username: str = None) -> Dict[str, Any]:
+        """列出当前用户的 Memory 资源"""
         try:
             if not self.memory_client:
                 self.memory_client = MemoryClient(region_name=self.region_name)
@@ -1745,14 +1311,44 @@ print(f"LTM 创建成功: {{ltm['id']}}")'''
             memories = self.memory_client.list_memories(max_results=100)
 
             memory_list = []
+            stm_count = 0
+            ltm_count = 0
+
             for memory in memories:
+                # Memory 资源的名称实际上存储在 id/memoryId 字段中，不是 name 字段
+                memory_id = memory.get('id', memory.get('memoryId', 'N/A'))
+                memory_name = memory.get('name', memory_id)  # fallback to ID if name is missing
+
+                # 过滤：仅显示属于当前用户的 Memory
+                # 使用 memory_id 来判断（因为创建时我们设置的 name 实际上变成了 id）
+                if username:
+                    # 检查 memory_id 是否匹配用户名前缀
+                    if not memory_id.startswith(f"{username}_"):
+                        continue
+
+                created_at = memory.get('createdAt', 'N/A')
+                # Convert datetime to string if needed
+                if created_at != 'N/A' and hasattr(created_at, 'isoformat'):
+                    created_at = created_at.isoformat()
+                elif created_at != 'N/A':
+                    created_at = str(created_at)
+
+                has_strategies = len(memory.get('strategies', [])) > 0
+                memory_type = 'LTM' if has_strategies else 'STM'
+
+                if memory_type == 'STM':
+                    stm_count += 1
+                else:
+                    ltm_count += 1
+
                 memory_info = {
                     "memory_id": memory.get('id', memory.get('memoryId', 'N/A')),
-                    "name": memory.get('name', 'N/A'),
+                    "name": memory_name,
                     "status": memory.get('status', 'N/A'),
-                    "created_at": memory.get('createdAt', 'N/A'),
-                    "has_strategies": len(memory.get('strategies', [])) > 0,
-                    "strategy_count": len(memory.get('strategies', []))
+                    "created_at": created_at,
+                    "has_strategies": has_strategies,
+                    "strategy_count": len(memory.get('strategies', [])),
+                    "memory_type": memory_type
                 }
                 memory_list.append(memory_info)
 
@@ -1760,7 +1356,9 @@ print(f"LTM 创建成功: {{ltm['id']}}")'''
                 "success": True,
                 "memories": memory_list,
                 "count": len(memory_list),
-                "message": f"找到 {len(memory_list)} 个 Memory 资源"
+                "stm_count": stm_count,
+                "ltm_count": ltm_count,
+                "message": f"找到 {len(memory_list)} 个 Memory 资源 (STM: {stm_count}, LTM: {ltm_count})"
             }
 
         except Exception as e:
