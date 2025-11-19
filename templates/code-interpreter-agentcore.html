@@ -9,6 +9,14 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+
+    <!-- Immediately hide header when in iframe to prevent FOUC -->
+    <script>
+        if (window.self !== window.top) {
+            document.write('<style>.row.header, .nav.nav-tabs, .nav-tabs { display: none !important; } .main-content { margin-top: 0 !important; padding-top: 20px !important; }</style>');
+        }
+    </script>
+
     <style>
         /* Split Panel Layout */
         .split-container {
@@ -457,8 +465,8 @@
         {% include 'partials/header.html' %}
 
         <div class="row main-content">
-            <div class="col-12">
-                <h2 class="text-center mb-2">AgentCore SDK Demo</h2>
+            <div class="col-12 mt-4">
+                <h2 class="text-center mb-4">AgentCore SDK Demo</h2>
                 <p class="text-center text-muted mb-4">Experience our easy-to-use SDK with live execution results</p>
 
                 <!-- Split Panel Layout -->
@@ -513,8 +521,8 @@ print("Hello from AgentCore!")
 <span class="comment"># Initialize the bedrock-agentcore client (requires AWS credentials)</span>
 client = boto3.client(
     <span class="string">"bedrock-agentcore"</span>,
-    region_name=<span class="string">"us-west-2"</span>,
-    endpoint_url=<span class="string">"https://bedrock-agentcore.us-west-2.amazonaws.com"</span>
+    region_name=<span class="string">"us-east-2"</span>,
+    endpoint_url=<span class="string">"https://bedrock-agentcore.us-east-2.amazonaws.com"</span>
 )
 
 <span class="comment"># Start a Code Interpreter session</span>
@@ -676,8 +684,8 @@ files_to_create = [
 <span class="comment"># Initialize the bedrock-agentcore client</span>
 client = boto3.client(
     <span class="string">"bedrock-agentcore"</span>,
-    region_name=<span class="string">"us-west-2"</span>,
-    endpoint_url=<span class="string">"https://bedrock-agentcore.us-west-2.amazonaws.com"</span>
+    region_name=<span class="string">"us-east-2"</span>,
+    endpoint_url=<span class="string">"https://bedrock-agentcore.us-east-2.amazonaws.com"</span>
 )
 
 <span class="comment"># Start a Code Interpreter session</span>
@@ -767,8 +775,8 @@ session_id = session_response[<span class="string">"sessionId"</span>]
 <span class="comment"># Initialize the bedrock-agentcore client</span>
 client = boto3.client(
     <span class="string">"bedrock-agentcore"</span>,
-    region_name=<span class="string">"us-west-2"</span>,
-    endpoint_url=<span class="string">"https://bedrock-agentcore.us-west-2.amazonaws.com"</span>
+    region_name=<span class="string">"us-east-2"</span>,
+    endpoint_url=<span class="string">"https://bedrock-agentcore.us-east-2.amazonaws.com"</span>
 )
 
 <span class="comment"># Start a Code Interpreter session</span>
@@ -1306,5 +1314,12 @@ session_id = session_response[<span class="string">"sessionId"</span>]
             </div>
         </div>
     </div>
+
+    <!-- Debug logging for iframe detection (CSS in head handles actual hiding) -->
+    <script>
+        if (window.self !== window.top) {
+            console.log('Page loaded in iframe - header and navigation hidden via CSS');
+        }
+    </script>
 </body>
 </html>

@@ -29,16 +29,16 @@ load_dotenv()
 #     stop_computer_task, kill_computer_desktop, init_computer_use_vars
 # )
 
-# Import Agentcore browser tool functions
-from agentcore_browser_tool import (
-    start_agentcore_browser, run_agentcore_browser_task, stop_agentcore_browser,
-    init_agentcore_vars, agentcore_session_manager
-)
-
 # Import AgentCore code interpreter functions
 from agentcore_code_interpreter import (
     execute_agentcore_code, reset_agentcore_sessions, get_active_sessions,
     execute_file_management_demo, execute_shell_command_demo, init_agentcore_code_interpreter_vars
+)
+
+# Import Agentcore browser tool functions
+from agentcore_browser_tool import (
+    start_agentcore_browser, run_agentcore_browser_task, stop_agentcore_browser,
+    init_agentcore_vars, agentcore_session_manager
 )
 
 # Import AgentCore memory API
@@ -108,6 +108,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 interactive_static_path = os.path.join(os.path.dirname(__file__), "interactive_tools", "static")
 if os.path.exists(interactive_static_path):
     app.mount("/dcv-static", StaticFiles(directory=interactive_static_path), name="dcv-static")
+    logger.info(f"Mounted DCV static files from: {interactive_static_path}")
+else:
+    logger.error(f"DCV static files directory not found: {interactive_static_path}")
 
 # Set up Jinja2 templates
 templates = Jinja2Templates(directory="templates")
@@ -396,40 +399,7 @@ async def get_index(request: Request, user: dict = Depends(get_current_user)):
     return templates.TemplateResponse("index.html", {"request": request, "user": user, "active_page": "home"})
 
 
-@app.get("/browser-use-agentcore", response_class=HTMLResponse)
-async def get_browser_use_agentcore(request: Request, user: dict = Depends(get_current_user)):
-    if not user:
-        return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("browser-use-agentcore.html", {"request": request, "user": user, "active_page": "browser-use"})
 
-
-@app.get("/agentcore-browser-viewer/{session_id}", response_class=HTMLResponse)
-async def get_agentcore_browser_viewer(session_id: str, request: Request, user: dict = Depends(get_current_user)):
-    """Serve DCV viewer page for a specific Agentcore browser session"""
-    if not user:
-        return RedirectResponse(url="/login", status_code=303)
-
-    # Get the session
-    from agentcore_browser_tool import agentcore_session_manager
-    session = agentcore_session_manager.get_session(session_id)
-
-    if not session or not session.browser_client:
-        raise HTTPException(status_code=404, detail="Browser session not found")
-
-    try:
-        # Generate presigned URL for DCV viewer
-        presigned_url = session.browser_client.generate_live_view_url(expires=300)
-
-        # Return HTML page with DCV viewer
-        return templates.TemplateResponse("agentcore-dcv-viewer.html", {
-            "request": request,
-            "user": user,
-            "session_id": session_id,
-            "presigned_url": presigned_url
-        })
-    except Exception as e:
-        logger.error(f"Error generating DCV viewer for session {session_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 # Removed - Computer Use feature
 # @app.get("/computer-use", response_class=HTMLResponse)
@@ -470,6 +440,18 @@ async def get_agentcore_gateway(request: Request, user: dict = Depends(get_curre
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse("agentcore-gateway.html", {"request": request, "user": user, "active_page": "agentcore-gateway"})
+
+@app.get("/agentcore-tool", response_class=HTMLResponse)
+async def get_agentcore_tool(request: Request, user: dict = Depends(get_current_user)):
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse("agentcore-tool.html", {"request": request, "user": user, "active_page": "agentcore-tool"})
+
+@app.get("/browser-tool", response_class=HTMLResponse)
+async def get_browser_tool(request: Request, user: dict = Depends(get_current_user)):
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse("browser-tool.html", {"request": request, "user": user, "active_page": "browser-tool"})
 
 # Removed - Old EC2 Code Interpreter
 # @app.get("/code-interpreter-ec2", response_class=HTMLResponse)
@@ -545,44 +527,16 @@ async def get_agentcore_gateway(request: Request, user: dict = Depends(get_curre
 #         logger.error(f"Error in kill_computer_desktop_endpoint: {e}", exc_info=True)
 #         return {"status": "error", "message": str(e)}
 
-# Agentcore BrowserTool API endpoints
-@app.post("/start-agentcore-browser")
-async def start_agentcore_browser_endpoint(session_id: str = Form(None), region: str = Form("us-west-2")):
-    """Start Agentcore browser session"""
-    try:
-        return await start_agentcore_browser(session_id=session_id, region=region)
-    except Exception as e:
-        logger.error(f"Error in start_agentcore_browser_endpoint: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
 
-@app.post("/run-agentcore-browser-task")
-async def run_agentcore_browser_task_endpoint(prompt: str = Form(...), session_id: str = Form(...), background_tasks: BackgroundTasks = BackgroundTasks()):
-    """Run Agentcore browser automation task"""
-    try:
-        # Run task in background
-        background_tasks.add_task(run_agentcore_browser_task, prompt, session_id)
-        return {"status": "success", "message": "Agentcore browser task started"}
-    except Exception as e:
-        logger.error(f"Error in run_agentcore_browser_task_endpoint: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
-
-@app.post("/stop-agentcore-browser")
-async def stop_agentcore_browser_endpoint(session_id: str = Form(...)):
-    """Stop Agentcore browser session"""
-    try:
-        return await stop_agentcore_browser(session_id=session_id)
-    except Exception as e:
-        logger.error(f"Error in stop_agentcore_browser_endpoint: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
 
 @app.get("/api/sessions/status")
 async def get_sessions_status():
-    """Get status of all active sessions (computer-use and browser-use)"""
+    """Get status of all active sessions"""
     try:
         # Computer-use sessions - DISABLED (module missing)
         computer_sessions = []
 
-        # Browser-use sessions - REMOVED (E2B dependency removed)
+        # Browser-use sessions - REMOVED
         browser_sessions = []
 
         # Agentcore browser sessions
@@ -602,14 +556,14 @@ async def get_sessions_status():
             agentcore_sessions.append(session_info)
 
         all_sessions = computer_sessions + browser_sessions + agentcore_sessions
-        
+
         # Also include WebSocket connection info
         websocket_info = {
             "total_connections": len(manager.active_connections),
             "session_connections": {k: len(v) for k, v in manager.session_connections.items()},
             "connection_sessions": len(manager.connection_sessions)
         }
-        
+
         return {
             "status": "success",
             "total_sessions": len(all_sessions),
@@ -703,6 +657,36 @@ async def execute_shell_command_demo_endpoint():
             "success": False,
             "error": result["error"]
         }, status_code=500)
+
+# Agentcore BrowserTool API endpoints
+@app.post("/start-agentcore-browser")
+async def start_agentcore_browser_endpoint(session_id: str = Form(None), region: str = Form("us-east-2")):
+    """Start Agentcore browser session"""
+    try:
+        return await start_agentcore_browser(session_id=session_id, region=region)
+    except Exception as e:
+        logger.error(f"Error in start_agentcore_browser_endpoint: {e}", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+@app.post("/run-agentcore-browser-task")
+async def run_agentcore_browser_task_endpoint(prompt: str = Form(...), session_id: str = Form(...), background_tasks: BackgroundTasks = BackgroundTasks()):
+    """Run Agentcore browser automation task"""
+    try:
+        # Run task in background
+        background_tasks.add_task(run_agentcore_browser_task, prompt, session_id)
+        return {"status": "success", "message": "Agentcore browser task started"}
+    except Exception as e:
+        logger.error(f"Error in run_agentcore_browser_task_endpoint: {e}", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+@app.post("/stop-agentcore-browser")
+async def stop_agentcore_browser_endpoint(session_id: str = Form(...)):
+    """Stop Agentcore browser session"""
+    try:
+        return await stop_agentcore_browser(session_id=session_id)
+    except Exception as e:
+        logger.error(f"Error in stop_agentcore_browser_endpoint: {e}", exc_info=True)
+        return {"status": "error", "message": str(e)}
 
 # AgentCore Memory API endpoints
 class MemoryInitRequest(BaseModel):

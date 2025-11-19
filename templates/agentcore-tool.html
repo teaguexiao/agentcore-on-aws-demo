@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentCore Tool - AgentCore on AWS Demo UI</title>
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <style>
+        /* Tool content containers */
+        .tool-content {
+            display: none;
+        }
+
+        .tool-content.active {
+            display: block;
+        }
+
+        /* Code Interpreter Styles */
+        .split-container {
+            display: flex;
+            height: calc(100vh - 150px);
+            min-height: 800px;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .left-panel, .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .right-panel .panel-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        /* Scenario Tabs */
+        .scenario-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .scenario-tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            font-weight: 500;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .scenario-tab:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .scenario-tab.active {
+            color: #667eea;
+            background: white;
+        }
+
+        .scenario-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #667eea;
+        }
+
+        .scenario-tab .badge {
+            margin-left: 8px;
+            font-size: 0.65rem;
+        }
+
+        /* Scenario Content */
+        .scenario-content {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            padding: 20px;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .scenario-content.active {
+            display: flex;
+        }
+
+        .scenario-description {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .scenario-description h5 {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        /* Code Editor Styles */
+        .code-editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .CodeMirror {
+            height: 100% !important;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* Output Display */
+        .output-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .output-display {
+            flex: 1;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 0;
+        }
+
+        .output-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .output-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* Session Status Badge */
+        .session-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        /* SDK Info Block */
+        .sdk-info-block {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .sdk-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .sdk-info-header h6 {
+            margin: 0;
+            color: #495057;
+            font-weight: 600;
+        }
+
+        .info-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .sdk-info-description {
+            background: #e7f3ff;
+            border-left: 4px solid #28a745;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #495057;
+            line-height: 1.6;
+        }
+
+        .sdk-info-description strong {
+            color: #28a745;
+        }
+
+        .sdk-code-display {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre;
+            border: 1px solid #667eea;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .sdk-code-display .comment {
+            color: #6a9955;
+        }
+
+        .sdk-code-display .keyword {
+            color: #569cd6;
+        }
+
+        .sdk-code-display .string {
+            color: #ce9178;
+        }
+
+        .sdk-code-display .function {
+            color: #dcdcaa;
+        }
+
+        .sdk-code-display .number {
+            color: #b5cea8;
+        }
+
+        .separator-line {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #667eea, transparent);
+            margin: 20px 0;
+            flex-shrink: 0;
+        }
+
+        /* Browser Tool Styles */
+        .stream-panel, .control-panel {
+            margin-bottom: 20px;
+        }
+
+        .card {
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            border-radius: 8px 8px 0 0 !important;
+        }
+
+        .card-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        #agentcore-log-container {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            line-height: 1.5;
+        }
+
+        .log-time {
+            color: #858585;
+            margin-right: 8px;
+        }
+
+        .log-message {
+            color: #d4d4d4;
+        }
+
+        .log-info .log-message {
+            color: #4fc3f7;
+        }
+
+        .log-success .log-message {
+            color: #81c784;
+        }
+
+        .log-error .log-message {
+            color: #e57373;
+        }
+
+        .log-warning .log-message {
+            color: #ffb74d;
+        }
+
+        .log-stdout .log-message {
+            color: #d4d4d4;
+        }
+
+        .log-stderr .log-message {
+            color: #ff8a80;
+        }
+
+        .agentcore-example-task {
+            margin-bottom: 5px;
+        }
+
+        .agentcore-example-task.active {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+
+        #agentcore-browser-container {
+            position: relative;
+            background-color: #f8f9fa;
+        }
+
+        #agentcore-browser-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            background-color: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+        }
+
+        #agentcore-browser-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        {% include 'partials/header.html' %}
+
+        <div class="row main-content">
+            <div class="col-12">
+                <!-- Code Interpreter Content -->
+                <div id="code-interpreter-content" class="tool-content">
+                    <iframe src="/code-interpreter-agentcore" style="width: 100%; height: calc(100vh - 200px); border: none; min-height: 800px;"></iframe>
+                </div>
+
+                <!-- Browser Tool Content -->
+                <div id="browser-tool-content" class="tool-content">
+                    <iframe src="/browser-tool" style="width: 100%; height: calc(100vh - 200px); border: none; min-height: 800px;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Tool selection based on URL parameter
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const selectedTool = urlParams.get('tool') || 'code-interpreter'; // Default to code-interpreter
+
+            const codeInterpreterContent = document.getElementById('code-interpreter-content');
+            const browserToolContent = document.getElementById('browser-tool-content');
+
+            // Hide all tool contents first
+            codeInterpreterContent.classList.remove('active');
+            browserToolContent.classList.remove('active');
+
+            // Show selected tool content
+            if (selectedTool === 'browser-tool') {
+                browserToolContent.classList.add('active');
+            } else {
+                codeInterpreterContent.classList.add('active');
+            }
+        });
+    </script>
+</body>
+</html>
+

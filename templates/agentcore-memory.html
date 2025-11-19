@@ -144,7 +144,7 @@ from bedrock_agentcore.memory import MemoryClient
 
 # ========== 创建 Memory (包含 STM 和 LTM 功能) ==========
 print("🚀 开始创建 Memory 资源（包含 STM 和 LTM 功能）")
-client = MemoryClient(region_name="us-west-2")
+client = MemoryClient(region_name="us-east-2")
 
 # 创建带策略的 Memory
 # - STM: 原始对话事件会即时存储
@@ -237,7 +237,7 @@ print(f"   - LTM: 5-15秒后异步提取语义和偏好信息")</pre>
 print("🔄 初始化 Memory Manager...")
 manager = MemorySessionManager(
     memory_id="your-memory-id",
-    region_name="us-west-2"
+    region_name="us-east-2"
 )
 print("✅ Memory Manager 初始化成功")
 print("\n💡 说明:")

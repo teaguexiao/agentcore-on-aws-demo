@@ -237,46 +237,25 @@ async function stopAgentcoreBrowser() {
 }
 
 // Handle Agentcore browser started
-async function handleAgentcoreBrowserStarted(data) {
+function handleAgentcoreBrowserStarted(data) {
     const agentcoreControlsDiv = document.getElementById('agentcore-controls');
     const agentcoreSessionIdSpan = document.getElementById('agentcore-session-id');
-    const agentcoreBrowserContainer = document.getElementById('agentcore-browser-container');
+    const agentcoreBrowserFrame = document.getElementById('agentcore-browser-frame');
     const agentcoreBrowserPlaceholder = document.getElementById('agentcore-browser-placeholder');
-
+    
     if (agentcoreControlsDiv) {
         agentcoreControlsDiv.style.display = 'flex';
     }
-
+    
     if (agentcoreSessionIdSpan) {
         agentcoreSessionIdSpan.textContent = data.session_id;
     }
-
-    // Embed DCV viewer in iframe
-    if (data.presigned_url && agentcoreBrowserContainer && agentcoreBrowserPlaceholder) {
-        try {
-            addAgentcoreLog('Loading DCV browser viewer...', 'info');
-            console.log('[DCV] Received presigned URL:', data.presigned_url.substring(0, 100) + '...');
-            console.log('[DCV] Full presigned URL length:', data.presigned_url.length);
-
-            // Hide placeholder
-            agentcoreBrowserPlaceholder.style.display = 'none';
-
-            // Create iframe for DCV viewer
-            const iframe = document.createElement('iframe');
-            iframe.id = 'agentcore-dcv-iframe';
-            iframe.src = `/agentcore-browser-viewer/${data.session_id}`;
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
-            iframe.style.border = 'none';
-            iframe.style.display = 'block';
-
-            agentcoreBrowserContainer.appendChild(iframe);
-
-            addAgentcoreLog('DCV browser viewer loaded', 'success');
-        } catch (error) {
-            addAgentcoreLog(`Failed to load DCV viewer: ${error.message}`, 'error');
-            console.error('DCV viewer error:', error);
-        }
+    
+    // Show browser frame if viewer URL is available
+    if (data.viewer_url && agentcoreBrowserFrame && agentcoreBrowserPlaceholder) {
+        agentcoreBrowserFrame.src = data.viewer_url;
+        agentcoreBrowserFrame.style.display = 'block';
+        agentcoreBrowserPlaceholder.style.display = 'none';
     }
 
     // Show fullscreen button when browser session is active
@@ -287,37 +266,23 @@ async function handleAgentcoreBrowserStarted(data) {
 
     // Start timer
     startAgentcoreTimer();
-
+    
     addAgentcoreLog('Agentcore browser session started successfully', 'success');
 }
 
 // Handle Agentcore browser stopped
 function handleAgentcoreBrowserStopped() {
     const agentcoreControlsDiv = document.getElementById('agentcore-controls');
+    const agentcoreBrowserFrame = document.getElementById('agentcore-browser-frame');
     const agentcoreBrowserPlaceholder = document.getElementById('agentcore-browser-placeholder');
-    const agentcoreDCVDisplay = document.getElementById('agentcore-dcv-display');
-
+    
     if (agentcoreControlsDiv) {
         agentcoreControlsDiv.style.display = 'none';
     }
-
-    // Disconnect DCV viewer if active
-    if (agentcoreDCVConnection) {
-        try {
-            agentcoreDCVConnection.disconnect();
-            agentcoreDCVConnection = null;
-        } catch (error) {
-            console.error('Error disconnecting DCV viewer:', error);
-        }
-    }
-
-    // Remove DCV display and show placeholder
-    if (agentcoreDCVDisplay) {
-        agentcoreDCVDisplay.remove();
-    }
-
-    if (agentcoreBrowserPlaceholder) {
-        agentcoreBrowserPlaceholder.style.display = 'flex';
+    
+    if (agentcoreBrowserFrame && agentcoreBrowserPlaceholder) {
+        agentcoreBrowserFrame.style.display = 'none';
+        agentcoreBrowserPlaceholder.style.display = 'block';
     }
 
     // Hide fullscreen button when browser session is stopped
@@ -328,7 +293,7 @@ function handleAgentcoreBrowserStopped() {
 
     // Stop timer
     stopAgentcoreTimer();
-
+    
     addAgentcoreLog('Agentcore browser session stopped', 'info');
 }
 
@@ -567,103 +532,6 @@ function closeAgentcoreFullscreen() {
     }
 
     addAgentcoreLog('Exited fullscreen mode.', 'info');
-}
-
-// DCV Viewer initialization
-let agentcoreDCVConnection = null;
-
-async function initializeAgentcoreDCVViewer(presignedUrl) {
-    return new Promise(async (resolve, reject) => {
-        try {
-            // Dynamically import DCV module
-            const dcvModule = await import('/dcv-static/dcvjs/dcv.js');
-            const dcv = dcvModule.default;
-
-            // Set log level
-            dcv.setLogLevel(dcv.LogLevel.INFO);
-
-            addAgentcoreLog('Authenticating with DCV server...', 'info');
-
-            // Authenticate with DCV server
-            dcv.authenticate(presignedUrl, {
-                promptCredentials: (authenticator, previousAttemptFailed) => {
-                    // No credentials needed for presigned URL
-                    return Promise.resolve({ username: '', password: '' });
-                },
-                error: (authenticator, error) => {
-                    addAgentcoreLog(`DCV authentication error: ${error.message || error}`, 'error');
-                    reject(error);
-                },
-                success: (authenticator, result) => {
-                    if (result && result[0]) {
-                        const { sessionId, authToken } = result[0];
-                        addAgentcoreLog('DCV authentication successful, connecting...', 'info');
-                        connectAgentcoreDCV(dcv, presignedUrl, sessionId, authToken, resolve, reject);
-                    } else {
-                        reject(new Error('No session data in auth result'));
-                    }
-                },
-                httpExtraSearchParams: (method, url, body) => {
-                    // Extract search params from presigned URL
-                    const parsedUrl = new URL(presignedUrl);
-                    return parsedUrl.searchParams;
-                }
-            });
-        } catch (error) {
-            addAgentcoreLog(`Failed to load DCV module: ${error.message}`, 'error');
-            reject(error);
-        }
-    });
-}
-
-function connectAgentcoreDCV(dcv, presignedUrl, sessionId, authToken, resolve, reject) {
-    console.log('[DCV Connect] Session ID:', sessionId);
-    console.log('[DCV Connect] Auth token received:', authToken ? 'Yes' : 'No');
-    console.log('[DCV Connect] Presigned URL (first 100 chars):', presignedUrl.substring(0, 100));
-
-    const connectOptions = {
-        url: presignedUrl,
-        sessionId: sessionId,
-        authToken: authToken,
-        divId: 'agentcore-dcv-display',
-        baseUrl: '/dcv-static/dcvjs',
-        callbacks: {
-            firstFrame: () => {
-                console.log('[DCV Connect] First frame received!');
-                addAgentcoreLog('DCV first frame received - viewer ready!', 'success');
-                resolve(agentcoreDCVConnection);
-            },
-            error: (error) => {
-                console.error('[DCV Connect] Error callback triggered:', error);
-                addAgentcoreLog(`DCV connection error: ${error.message || error}`, 'error');
-                reject(error);
-            },
-            httpExtraSearchParams: (method, url, body) => {
-                console.log('[DCV Connect] httpExtraSearchParams called for:', method, url);
-                const parsedUrl = new URL(presignedUrl);
-                const params = parsedUrl.searchParams;
-                console.log('[DCV Connect] Returning search params:', Array.from(params.keys()));
-                return params;
-            }
-        }
-    };
-
-    console.log('[DCV Connect] Calling dcv.connect() with options:', {
-        url: presignedUrl.substring(0, 100) + '...',
-        sessionId,
-        divId: connectOptions.divId,
-        baseUrl: connectOptions.baseUrl
-    });
-
-    dcv.connect(connectOptions)
-        .then((connection) => {
-            agentcoreDCVConnection = connection;
-            addAgentcoreLog('DCV connection established', 'success');
-        })
-        .catch((error) => {
-            addAgentcoreLog(`DCV connection failed: ${error.message}`, 'error');
-            reject(error);
-        });
 }
 
 // Initialize when DOM is loaded

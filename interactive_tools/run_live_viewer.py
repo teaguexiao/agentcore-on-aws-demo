@@ -32,7 +32,7 @@ def main():
     try:
         # Step 1: Create browser session
         console.print("\n[cyan]Step 1: Creating browser session...[/cyan]")
-        browser_client = BrowserClient(region="us-west-2")
+        browser_client = BrowserClient(region="us-east-2")
         session_id = browser_client.start()
         console.print(f"✅ Session created: {session_id}")
         

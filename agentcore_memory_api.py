@@ -19,7 +19,7 @@ import json
 class AgentCoreMemoryAPI:
     """Memory API handler"""
 
-    def __init__(self, region_name: str = "us-west-2"):
+    def __init__(self, region_name: str = "us-east-2"):
         self.region_name = region_name
         self.memory_client = None
         self.bedrock_runtime = None

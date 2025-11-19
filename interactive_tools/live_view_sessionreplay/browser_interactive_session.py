@@ -10,7 +10,7 @@ This example demonstrates a full Bedrock AgentCore browser workflow:
 5. View recordings with session replay viewer
 
 Environment Variables:
-    AWS_REGION          - AWS region (default: us-west-2)
+    AWS_REGION          - AWS region (default: us-east-2)
     BEDROCK_AGENTCORE_ROLE_ARN    - IAM role ARN for Bedrock AgentCore execution (will use default pattern if not set)
     RECORDING_BUCKET    - S3 bucket for recordings (default: session-record-test-{account_id})
     RECORDING_PREFIX    - S3 prefix for recordings (default: replay-data)
@@ -62,7 +62,7 @@ from .session_replay_viewer import S3DataSource, SessionReplayViewer, SessionRep
 console = Console()
 
 # Configuration from environment variables with defaults
-REGION = os.environ.get("AWS_REGION", "us-west-2")
+REGION = os.environ.get("AWS_REGION", "us-east-2")
 BEDROCK_AGENTCORE_STAGE = os.environ.get("BEDROCK_AGENTCORE_STAGE", "prod")
 
 # Get account ID from STS if not provided

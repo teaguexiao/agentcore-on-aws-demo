@@ -57,7 +57,7 @@ Run a complete end-to-end workflow that includes live browser viewing, automatic
 5. After you end the session (Ctrl+C), a replay viewer opens showing your recording
 
 ### Environment Variables
-- `AWS_REGION` - AWS region (default: us-west-2)
+- `AWS_REGION` - AWS region (default: us-east-2)
 - `AGENTCORE_ROLE_ARN` - IAM role ARN for browser execution (default: automatically generated from account ID)
 - `RECORDING_BUCKET` - S3 bucket for recordings (default: session-record-test-{ACCOUNT_ID})
 - `RECORDING_PREFIX` - S3 prefix for recordings (default: replay-data)
