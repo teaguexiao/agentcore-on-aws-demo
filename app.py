@@ -726,10 +726,6 @@ class MemoryLTMStep2Request(BaseModel):
     user_question: str
     actor_id: str
 
-class MemoryCombinedRequest(BaseModel):
-    user_question: str
-    actor_id: str
-
 @app.post("/api/memory/initialize")
 async def initialize_memory(request: MemoryInitRequest):
     """Initialize Memory Managers"""
@@ -737,12 +733,23 @@ async def initialize_memory(request: MemoryInitRequest):
     return JSONResponse(result)
 
 @app.get("/api/memory/initialize-stream")
-async def initialize_memory_stream(stm_memory_id: str, ltm_memory_id: str):
-    """Initialize Memory Managers (streaming)"""
+async def initialize_memory_stream(memory_id: str = None, stm_memory_id: str = None, ltm_memory_id: str = None):
+    """Initialize Memory Manager (streaming) - supports unified or separate memory IDs"""
     async def event_generator():
-        for event in memory_api.initialize_stream(stm_memory_id, ltm_memory_id):
-            yield event
-            await asyncio.sleep(0.05)
+        # Support new unified approach (single memory_id) or old approach (separate IDs)
+        if memory_id:
+            # New unified approach: one memory with both STM and LTM
+            for event in memory_api.initialize_stream_unified(memory_id):
+                yield event
+                await asyncio.sleep(0.05)
+        elif stm_memory_id and ltm_memory_id:
+            # Old approach for backward compatibility
+            for event in memory_api.initialize_stream(stm_memory_id, ltm_memory_id):
+                yield event
+                await asyncio.sleep(0.05)
+        else:
+            yield 'data: {"type":"error","data":"请提供 memory_id 参数"}\n\n'
+            return
 
     return StreamingResponse(
         event_generator(),
@@ -850,30 +857,6 @@ async def memory_ltm_step2_stream(user_question: str, actor_id: str):
         }
     )
 
-@app.post("/api/memory/combined")
-async def memory_combined(request: MemoryCombinedRequest):
-    """Combined Demo: STM + LTM"""
-    result = memory_api.demo_combined(request.user_question, request.actor_id)
-    return JSONResponse(result)
-
-@app.get("/api/memory/combined-stream")
-async def memory_combined_stream(user_question: str, actor_id: str):
-    """Combined Demo: STM + LTM (streaming)"""
-    async def event_generator():
-        for event in memory_api.demo_combined_stream(user_question, actor_id):
-            yield event
-            await asyncio.sleep(0.05)
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
-    )
-
 # Memory Management API endpoints
 class CreateMemoryRequest(BaseModel):
     name: Optional[str] = None
@@ -890,19 +873,29 @@ class ListRecordsRequest(BaseModel):
 class DeleteMemoryRequest(BaseModel):
     memory_id: str
 
-@app.post("/api/memory/create-stm")
-async def create_stm_memory(request: CreateMemoryRequest):
-    """Create STM Memory"""
-    result = memory_api.create_stm_memory(request.name)
+@app.post("/api/memory/create")
+async def create_memory(request: CreateMemoryRequest, user: dict = Depends(get_current_user)):
+    """Create Memory with both STM and LTM capabilities"""
+    if not user:
+        return JSONResponse({"success": False, "message": "未登录"})
+
+    username = user.get("username", "default_user")
+    result = memory_api.create_memory(request.name, username=username)
     return JSONResponse(result)
 
-@app.get("/api/memory/create-stm-stream")
-async def create_stm_memory_stream(name: str = None):
-    """Create STM Memory with streaming response"""
+@app.get("/api/memory/create-stream")
+async def create_memory_stream(name: str = None, user: dict = Depends(get_current_user)):
+    """Create Memory with streaming response"""
+    if not user:
+        async def error_generator():
+            yield 'data: {"type":"error","data":"未登录"}\n\n'
+        return StreamingResponse(error_generator(), media_type="text/event-stream")
+
+    username = user.get("username", "default_user")
+
     async def event_generator():
-        for event in memory_api.create_stm_memory_stream(name):
+        for event in memory_api.create_memory_stream(name, username=username):
             yield event
-            # Small delay to ensure proper streaming
             await asyncio.sleep(0.1)
 
     return StreamingResponse(
@@ -915,35 +908,15 @@ async def create_stm_memory_stream(name: str = None):
         }
     )
 
-@app.post("/api/memory/create-ltm")
-async def create_ltm_memory(request: CreateMemoryRequest):
-    """Create LTM Memory"""
-    result = memory_api.create_ltm_memory(request.name)
-    return JSONResponse(result)
-
-@app.get("/api/memory/create-ltm-stream")
-async def create_ltm_memory_stream(name: str = None):
-    """Create LTM Memory with streaming response"""
-    async def event_generator():
-        for event in memory_api.create_ltm_memory_stream(name):
-            yield event
-            # Small delay to ensure proper streaming
-            await asyncio.sleep(0.1)
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
-    )
 
 @app.get("/api/memory/list")
-async def list_memories():
-    """List all Memory resources"""
-    result = memory_api.list_memories()
+async def list_memories(user: dict = Depends(get_current_user)):
+    """List all Memory resources for the current user"""
+    if not user:
+        return JSONResponse({"success": False, "message": "未登录"})
+
+    username = user.get("username", "default_user")
+    result = memory_api.list_memories(username=username)
     return JSONResponse(result)
 
 @app.post("/api/memory/list-stm-events")
