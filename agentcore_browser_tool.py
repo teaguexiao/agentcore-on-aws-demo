@@ -17,11 +17,6 @@ from browser_use.browser.session import BrowserSession
 from bedrock_agentcore.tools.browser_client import BrowserClient
 from browser_use.browser import BrowserProfile
 from langchain_aws import ChatBedrockConverse
-from boto3.session import Session
-
-# Add interactive_tools to path for BrowserViewerServer
-sys.path.append("./interactive_tools")
-from browser_viewer import BrowserViewerServer
 
 # Global variables for session management
 agentcore_session_manager = None
@@ -39,9 +34,8 @@ class AgentcoreBrowserSession:
         self.browser_client: Optional[BrowserClient] = None
         self.browser_session: Optional[BrowserSession] = None
         self.bedrock_chat: Optional[ChatBedrockConverse] = None
-        self.viewer_server: Optional[BrowserViewerServer] = None
-        self.viewer_url: Optional[str] = None
         self.ws_url: Optional[str] = None
+        self.presigned_url: Optional[str] = None  # DCV presigned URL for viewer
         self.headers: Optional[dict] = None
         self.connections: Set = set()
         self.last_activity = datetime.now()
@@ -135,15 +129,20 @@ class AgentcoreSessionManager:
 # Initialize session manager
 agentcore_session_manager = AgentcoreSessionManager()
 
-async def start_agentcore_browser(session_id: str = None, region: str = "us-west-2"):
+async def start_agentcore_browser(session_id: str = None, region: str = "us-east-2"):
     """Start Agentcore browser session"""
-    
+
+    if agentcore_logger:
+        agentcore_logger.info(f"[start_agentcore_browser] Called with session_id: {session_id}, region: {region}")
+
     if not agentcore_session_manager:
         return {"status": "error", "message": "Session manager not initialized"}
-    
+
     # Create new session if none provided
     if not session_id:
         session_id = agentcore_session_manager.create_session()
+        if agentcore_logger:
+            agentcore_logger.info(f"[start_agentcore_browser] No session_id provided, created new: {session_id}")
     else:
         # Check if session exists, create if not
         session = agentcore_session_manager.get_session(session_id)
@@ -151,7 +150,10 @@ async def start_agentcore_browser(session_id: str = None, region: str = "us-west
             session = AgentcoreBrowserSession(session_id)
             agentcore_session_manager.sessions[session_id] = session
             if agentcore_logger:
-                agentcore_logger.info(f"Created new Agentcore session with provided ID: {session_id}")
+                agentcore_logger.info(f"[start_agentcore_browser] Created new Agentcore session with provided ID: {session_id}")
+        else:
+            if agentcore_logger:
+                agentcore_logger.info(f"[start_agentcore_browser] Using existing session: {session_id}")
     
     session = agentcore_session_manager.get_session(session_id)
     if not session:
@@ -160,60 +162,76 @@ async def start_agentcore_browser(session_id: str = None, region: str = "us-west
     try:
         if agentcore_logger:
             agentcore_logger.info(f"Starting Agentcore browser for session {session_id}")
-        
+
         # Create browser client
         session.browser_client = BrowserClient(region)
         session.browser_client.start()
-        
-        # Generate WebSocket URL and headers
+
+        # Generate WebSocket URL and headers for CDP automation
         session.ws_url, session.headers = session.browser_client.generate_ws_headers()
 
-        # Start viewer server with a unique port for this session
-        viewer_port = 8000 + hash(session_id) % 1000  # Generate unique port based on session ID
-        session.viewer_server = BrowserViewerServer(session.browser_client, port=viewer_port)
-        session.viewer_url = session.viewer_server.start(open_browser=False)  # Don't auto-open browser
-        
+        # Generate the DCV live view presigned URL for frontend viewer
+        # This is different from the CDP WebSocket URL used for automation
+        # Max expiry is 300 seconds (5 minutes)
+        session.presigned_url = session.browser_client.generate_live_view_url(expires=300)
+
+        if agentcore_logger:
+            agentcore_logger.info(f"Generated DCV live view URL for session {session_id}")
+            agentcore_logger.info(f"CDP WebSocket URL: {session.ws_url}")
+            agentcore_logger.info(f"DCV Live View URL: {session.presigned_url}")
+            agentcore_logger.info(f"DCV Live View URL length: {len(session.presigned_url)} characters")
+
         # Create browser profile with headers
         browser_profile = BrowserProfile(
             headers=session.headers,
             timeout=1500000,  # 150 seconds timeout
         )
-        
+
         # Create browser session
         session.browser_session = BrowserSession(
             cdp_url=session.ws_url,
             browser_profile=browser_profile,
             keep_alive=True,  # Keep browser alive between tasks
         )
-        
+
         # Initialize the browser session
         await session.browser_session.start()
-        
+
         # Create ChatBedrockConverse
         session.bedrock_chat = ChatBedrockConverse(
             model_id="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
             region_name=region,
         )
-        
+
         if agentcore_logger:
             agentcore_logger.info(f"Agentcore browser session {session_id} started successfully")
-        
-        # Send success message to connected clients
+
+        # Send success message to connected clients with presigned URL
         if agentcore_manager:
+            # Wait a moment to ensure WebSocket has identified itself
+            import asyncio
+            await asyncio.sleep(0.5)
+
+            if agentcore_logger:
+                agentcore_logger.info(f"Sending agentcore_browser_started message to session {session_id}")
+
             await agentcore_manager.send_to_session(session_id, {
                 "type": "agentcore_browser_started",
                 "data": {
                     "session_id": session_id,
-                    "viewer_url": session.viewer_url,
+                    "presigned_url": session.presigned_url,
                     "status": "ready"
                 }
             })
-        
+
+            if agentcore_logger:
+                agentcore_logger.info(f"Message sent to session {session_id}")
+
         return {
             "status": "success",
             "message": "Agentcore browser started successfully",
             "session_id": session_id,
-            "viewer_url": session.viewer_url
+            "presigned_url": session.presigned_url
         }
         
     except Exception as e:

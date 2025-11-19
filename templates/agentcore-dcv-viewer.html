@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentCore Browser Viewer - {{ session_id }}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #000;
+        }
+        #dcv-display {
+            width: 100%;
+            height: 100%;
+            background: black;
+        }
+        #status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="dcv-display"></div>
+    <div id="status">Initializing DCV viewer...</div>
+
+    <!-- Configure DCV worker path -->
+    <script>
+        window.dcvWorkerPath = '/dcv-static/dcvjs/dcv/';
+    </script>
+
+    <!-- Load DCV SDK -->
+    <script src="/dcv-static/dcvjs/dcv.js" onerror="handleDCVLoadError()"></script>
+
+    <!-- Main viewer logic -->
+    <script>
+        const presignedUrl = "{{ presigned_url }}";
+        const sessionId = "{{ session_id }}";
+        let connection = null;
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+            console.log('[DCV Viewer]', message);
+        }
+
+        function handleDCVLoadError() {
+            updateStatus('ERROR: Failed to load DCV SDK from /dcv-static/dcvjs/dcv.js');
+            console.error('[DCV Viewer] Failed to load DCV SDK script');
+            console.error('[DCV Viewer] Check if /dcv-static/dcvjs/dcv.js is accessible');
+        }
+
+        function httpExtraSearchParamsCallback(method, url, body) {
+            const parsedUrl = new URL(presignedUrl);
+            return parsedUrl.searchParams;
+        }
+
+        // Wait for DCV SDK to load
+        window.addEventListener('load', function() {
+            console.log('[DCV Viewer] Page loaded, checking DCV SDK...');
+            console.log('[DCV Viewer] typeof dcv:', typeof dcv);
+
+            // Initialize DCV
+            if (typeof dcv === 'undefined') {
+                updateStatus('ERROR: DCV SDK not loaded!');
+                console.error('[DCV Viewer] DCV SDK not found after page load');
+                console.error('[DCV Viewer] Please check browser console Network tab for /dcv-static/dcvjs/dcv.js');
+            } else {
+                initializeDCV();
+            }
+        });
+
+        function initializeDCV() {
+            console.log('[DCV Viewer] DCV SDK loaded successfully');
+            console.log('[DCV Viewer] DCV version:', dcv.version || 'unknown');
+            console.log('[DCV Viewer] DCV methods:', Object.keys(dcv).slice(0, 10).join(', '));
+
+            // Configure DCV
+            if (dcv.setWorkerPath) {
+                dcv.setWorkerPath('/dcv-static/dcvjs/dcv/');
+                console.log('[DCV Viewer] Set worker path to /dcv-static/dcvjs/dcv/');
+            }
+            if (dcv.setLogLevel) {
+                dcv.setLogLevel(dcv.LogLevel.INFO);
+                console.log('[DCV Viewer] Set log level to INFO');
+            }
+
+            // Authenticate
+            updateStatus('Authenticating with DCV server...');
+            console.log('[DCV Viewer] Starting authentication...');
+            console.log('[DCV Viewer] Presigned URL (first 100 chars):', presignedUrl.substring(0, 100));
+
+            dcv.authenticate(presignedUrl, {
+                promptCredentials: () => {
+                    console.log('[DCV Viewer] Credentials requested (should not happen with presigned URL)');
+                    return Promise.resolve({ username: '', password: '' });
+                },
+                error: (auth, error) => {
+                    const errorMsg = error.message || error;
+                    updateStatus('Authentication error: ' + errorMsg);
+                    console.error('[DCV Viewer] Auth error:', error);
+                },
+                success: (auth, result) => {
+                    console.log('[DCV Viewer] Authentication successful');
+                    updateStatus('Authentication successful, connecting...');
+                    
+                    if (result && result[0]) {
+                        const { sessionId: dcvSessionId, authToken } = result[0];
+                        console.log('[DCV Viewer] Session ID:', dcvSessionId);
+                        console.log('[DCV Viewer] Auth token received:', authToken ? 'Yes' : 'No');
+                        
+                        // Connect to session
+                        const connectOptions = {
+                            url: presignedUrl,
+                            sessionId: dcvSessionId,
+                            authToken: authToken,
+                            divId: 'dcv-display',
+                            baseUrl: '/dcv-static/dcvjs',
+                            callbacks: {
+                                firstFrame: () => {
+                                    updateStatus('Connected - Viewer ready!');
+                                    console.log('[DCV Viewer] First frame received');
+                                },
+                                error: (error) => {
+                                    const errorMsg = error.message || error;
+                                    updateStatus('Connection error: ' + errorMsg);
+                                    console.error('[DCV Viewer] Connection error:', error);
+                                },
+                                httpExtraSearchParams: httpExtraSearchParamsCallback
+                            }
+                        };
+
+                        console.log('[DCV Viewer] Connecting to session...');
+                        updateStatus('Establishing connection...');
+
+                        dcv.connect(connectOptions)
+                            .then((conn) => {
+                                connection = conn;
+                                console.log('[DCV Viewer] Connection established');
+                            })
+                            .catch((error) => {
+                                const errorMsg = error.message || error;
+                                updateStatus('Connect failed: ' + errorMsg);
+                                console.error('[DCV Viewer] Connect failed:', error);
+                            });
+                    } else {
+                        updateStatus('No session data in auth result');
+                        console.error('[DCV Viewer] No session data in auth result');
+                    }
+                },
+                httpExtraSearchParams: httpExtraSearchParamsCallback
+            });
+        }
+
+        // Log when script is executed
+        console.log('[DCV Viewer] Script loaded, waiting for page load event...');
+    </script>
+</body>
+</html>
+

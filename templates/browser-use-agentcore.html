@@ -77,11 +77,10 @@
                                 </div>
                             </div>
                             <div class="card-body">
-                                <div id="agentcore-browser-container" style="width: 100%; height: 500px; position: relative;">
+                                <div id="agentcore-browser-container" style="width: 100%; height: 500px; position: relative; background-color: #000;">
                                     <div id="agentcore-browser-placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%; background-color: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;">
                                         <p style="color: #6c757d; margin: 0;">No active browser session. Start a new session to begin.</p>
                                     </div>
-                                    <iframe id="agentcore-browser-frame" style="display: none; width: 100%; height: 100%; border: none; border-radius: 8px;"></iframe>
                                 </div>
                             </div>
                         </div>
@@ -133,8 +132,8 @@
     </div>
 
     <script src="/static/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/script.js"></script>
-    <script src="/static/js/agentcore-browser.js"></script>
+    <!-- script.js is NOT loaded on Agentcore page to avoid WebSocket conflicts -->
+    <script src="/static/js/agentcore-browser.js?v=4"></script>
 
     <!-- Agentcore Browser Fullscreen Modal -->
     <div class="modal fade" id="agentcoreFullscreenModal" tabindex="-1" aria-labelledby="agentcoreFullscreenModalLabel" aria-hidden="true">

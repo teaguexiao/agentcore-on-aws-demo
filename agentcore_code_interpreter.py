@@ -21,8 +21,8 @@ agentcore_logger = None
 agentcore_sessions: Dict[str, Any] = {}
 
 # Configuration constants
-AGENTCORE_REGION = "us-west-2"
-AGENTCORE_ENDPOINT = "https://bedrock-agentcore.us-west-2.amazonaws.com"
+AGENTCORE_REGION = "us-east-2"
+AGENTCORE_ENDPOINT = "https://bedrock-agentcore.us-east-2.amazonaws.com"
 CODE_INTERPRETER_IDENTIFIER = "aws.codeinterpreter.v1"
 SESSION_TIMEOUT_SECONDS = 900
 SESSION_NAME = "my-code-session"

@@ -1,4 +1,11 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Check if we're on the Agentcore page - if so, don't initialize this script
+    // The agentcore-browser.js script will handle WebSocket connections for that page
+    if (document.getElementById('agentcore-browser') || document.getElementById('agentcore-task-input')) {
+        console.log('Agentcore page detected - skipping script.js initialization');
+        return;
+    }
+
     // DOM elements
     const runWorkflowBtn = document.getElementById('run-workflow');
     const clearLogsBtn = document.getElementById('clear-logs');
@@ -11,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const stopDesktopBtn = document.getElementById('stop-desktop');
     const sandboxTimerSpan = document.getElementById('sandbox-timer');
     const sandboxControlsDiv = document.getElementById('sandbox-controls');
-    
+
     // Session management
     const sessionId = generateSessionId();
     
