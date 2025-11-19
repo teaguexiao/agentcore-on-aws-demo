@@ -116,21 +116,18 @@
                         <div class="row mb-4">
                             <div class="col-12">
                                 <h6><i class="fas fa-plus-circle me-2"></i>创建新的 Memory 资源</h6>
-                                <p class="text-muted small">
-                                    点击下方按钮创建 STM 或 LTM Memory 资源。创建后自动填充到下方的输入框中。
+                                <p class="text-muted small mb-2">
+                                    点击下方按钮创建 Memory 资源（同时包含短期记忆和长期记忆功能）。创建后会自动刷新下方的下拉选择框。
                                 </p>
-                                <div class="btn-group" role="group">
-                                    <button class="btn btn-success" onclick="createSTMMemory()">
-                                        <i class="fas fa-clock me-2"></i>创建 STM Memory
-                                        <span class="spinner-border spinner-border-sm ms-2 loading" id="createSTMLoading"></span>
-                                    </button>
-                                    <button class="btn btn-info" onclick="createLTMMemory()">
-                                        <i class="fas fa-database me-2"></i>创建 LTM Memory
-                                        <span class="spinner-border spinner-border-sm ms-2 loading" id="createLTMLoading"></span>
-                                    </button>
-                                    <button class="btn btn-secondary" onclick="listMemories()">
-                                        <i class="fas fa-list me-2"></i>列出现有 Memory
-                                        <span class="spinner-border spinner-border-sm ms-2 loading" id="listMemoriesLoading"></span>
+                                <div class="alert alert-info py-2 mb-3" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Memory 说明：</strong>一个 Memory 实例包含 <strong>STM（原始对话事件）</strong> 和 <strong>LTM（提取的语义记忆）</strong>。
+                                    每个用户最多创建 <strong>5个 Memory</strong> 资源。
+                                </div>
+                                <div>
+                                    <button id="createMemoryBtn" class="btn btn-primary btn-lg" onclick="createMemory()">
+                                        <i class="fas fa-plus-circle me-2"></i>创建 Memory 资源
+                                        <span class="spinner-border spinner-border-sm ms-2 loading" id="createMemoryLoading"></span>
                                     </button>
                                 </div>
                             </div>
@@ -145,24 +142,17 @@
 from datetime import datetime
 from bedrock_agentcore.memory import MemoryClient
 
-# ========== 创建 STM (Short-Term Memory) ==========
-print("🚀 开始创建 Short-Term Memory (STM)")
+# ========== 创建 Memory (包含 STM 和 LTM 功能) ==========
+print("🚀 开始创建 Memory 资源（包含 STM 和 LTM 功能）")
 client = MemoryClient(region_name="us-west-2")
 
-stm = client.create_memory_and_wait(
-    name="AgentCore_STM_Demo_xxx",
-    strategies=[],  # 空列表 = 不配置提取策略
-    description="Short-term memory demo - 仅存储原始对话",
-    event_expiry_days=7
-)
-print(f"✅ STM 创建成功: {stm['id']}")
-
-# ========== 创建 LTM (Long-Term Memory) ==========
-print("\n🚀 开始创建 Long-Term Memory (LTM)")
-
-ltm = client.create_memory_and_wait(
-    name="AgentCore_LTM_Demo_xxx",
+# 创建带策略的 Memory
+# - STM: 原始对话事件会即时存储
+# - LTM: 5-15秒后异步提取语义和偏好信息
+memory = client.create_memory_and_wait(
+    name="username_Memory_xxx",
     strategies=[
+        # 语义记忆策略: 提取重要的事实和信息
         {
             "semanticMemoryStrategy": {
                 "name": "semantic_facts",
@@ -170,6 +160,7 @@ ltm = client.create_memory_and_wait(
                 "namespaces": ["/strategies/{memoryStrategyId}/actors/{actorId}"]
             }
         },
+        # 用户偏好策略: 提取用户的喜好和偏好
         {
             "userPreferenceMemoryStrategy": {
                 "name": "user_preferences",
@@ -178,10 +169,13 @@ ltm = client.create_memory_and_wait(
             }
         }
     ],
-    description="Long-term memory demo - 智能提取和跨会话记忆",
-    event_expiry_days=30
+    description="Memory with both STM (raw events) and LTM (extracted memories)",
+    event_expiry_days=30  # 保存30天
 )
-print(f"✅ LTM 创建成功: {ltm['id']}")</pre>
+
+print(f"✅ Memory 创建成功: {memory['id']}")
+print(f"   - STM: 原始对话事件会即时存储")
+print(f"   - LTM: 5-15秒后异步提取语义和偏好信息")</pre>
                                 </div>
                             </div>
                         </div>
@@ -203,45 +197,26 @@ print(f"✅ LTM 创建成功: {ltm['id']}")</pre>
                             </div>
                         </div>
 
-                        <!-- List Memories -->
-                        <div class="row mb-4" id="memoryListSection" style="display: none;">
-                            <div class="col-12">
-                                <h6><i class="fas fa-list me-2"></i>现有 Memory 资源</h6>
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-hover">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Memory ID</th>
-                                                <th>名称</th>
-                                                <th>状态</th>
-                                                <th>类型</th>
-                                                <th>创建时间</th>
-                                                <th>操作</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="memoryListBody"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
                         <hr>
 
                         <!-- Initialize Memory -->
                         <div class="row">
                             <div class="col-12">
-                                <h6><i class="fas fa-check-circle me-2"></i>初始化 Memory Managers</h6>
+                                <h6><i class="fas fa-check-circle me-2"></i>初始化 Memory Manager</h6>
                                 <p class="text-muted small">
-                                    输入或选择 Memory ID，然后点击初始化按钮开始演示。
+                                    从下拉列表中选择已创建的 Memory 资源，然后点击初始化按钮开始演示。一个 Memory 同时支持 STM 和 LTM 功能。
                                 </p>
                             </div>
-                            <div class="col-md-5">
-                                <label for="stmMemoryId" class="form-label">STM Memory ID</label>
-                                <input type="text" class="form-control" id="stmMemoryId" placeholder="mem-xxxxx...">
-                            </div>
-                            <div class="col-md-5">
-                                <label for="ltmMemoryId" class="form-label">LTM Memory ID</label>
-                                <input type="text" class="form-control" id="ltmMemoryId" placeholder="mem-xxxxx...">
+                            <div class="col-md-10">
+                                <label for="memoryId" class="form-label">
+                                    Memory 资源
+                                    <button class="btn btn-link btn-sm p-0 ms-2" onclick="loadMemoryList()" title="刷新列表">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </label>
+                                <select class="form-select" id="memoryId">
+                                    <option value="">请选择 Memory 资源</option>
+                                </select>
                             </div>
                             <div class="col-md-2 d-flex align-items-end">
                                 <button class="btn btn-primary w-100" onclick="initializeMemory()">
@@ -258,23 +233,18 @@ print(f"✅ LTM 创建成功: {ltm['id']}")</pre>
                                 <div class="code-snippet" style="max-height: 300px; overflow-y: auto;">
                                     <pre style="margin: 0;">from bedrock_agentcore.memory.session import MemorySessionManager
 
-# 初始化 STM Manager
-print("🔄 初始化 STM Manager...")
-stm_manager = MemorySessionManager(
-    memory_id="your-stm-memory-id",
+# 初始化 Memory Manager (统一实例，包含 STM 和 LTM)
+print("🔄 初始化 Memory Manager...")
+manager = MemorySessionManager(
+    memory_id="your-memory-id",
     region_name="us-west-2"
 )
-print("✅ STM Manager 初始化成功")
-
-# 初始化 LTM Manager
-print("🔄 初始化 LTM Manager...")
-ltm_manager = MemorySessionManager(
-    memory_id="your-ltm-memory-id",
-    region_name="us-west-2"
-)
-print("✅ LTM Manager 初始化成功")
-
-print("\n✨ Memory Managers 初始化完成，可以开始演示了！")</pre>
+print("✅ Memory Manager 初始化成功")
+print("\n💡 说明:")
+print("   - 该 Memory 实例包含:")
+print("     • STM: 原始对话事件（即时存储和检索）")
+print("     • LTM: 提取的语义记忆（5-15秒后异步生成）")
+print("   - 使用同一个 manager 实例同时访问 STM 和 LTM")</pre>
                                 </div>
                             </div>
                         </div>
@@ -302,11 +272,6 @@ print("\n✨ Memory Managers 初始化完成，可以开始演示了！")</pre>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="ltm-tab" data-bs-toggle="tab" data-bs-target="#ltm" type="button" role="tab">
                                 <i class="fas fa-database me-2"></i>Demo 2: Long-term Memory
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="combined-tab" data-bs-toggle="tab" data-bs-target="#combined" type="button" role="tab">
-                                <i class="fas fa-layer-group me-2"></i>Demo 3: STM + LTM 结合
                             </button>
                         </li>
                     </ul>
@@ -695,134 +660,6 @@ print(f"助手回答: {assistant_response}")</pre>
                         </div>
 
                         <!-- Combined Demo -->
-                        <div class="tab-pane fade" id="combined" role="tabpanel">
-                            <div class="demo-section">
-                                <h5 class="text-primary">演示说明</h5>
-                                <p>结合两者优势: STM 提供会话连贯性 + LTM 提供长期记忆。这是生产环境的最佳实践。</p>
-
-                                <div class="alert alert-success">
-                                    <i class="fas fa-check-circle me-2"></i>
-                                    <strong>最佳实践：</strong>
-                                    <ul class="mb-0 mt-2">
-                                        <li><strong>STM</strong> 用于维护当前会话的上下文，保持对话连贯性</li>
-                                        <li><strong>LTM</strong> 用于存储用户偏好和重要信息，实现个性化</li>
-                                        <li>两者结合使用，既保证实时性，又实现长期记忆</li>
-                                        <li>适合构建具有记忆能力的智能助手和对话系统</li>
-                                    </ul>
-                                </div>
-
-                                <div class="text-center mb-3">
-                                    <small class="text-muted">
-                                        <i class="fas fa-images me-2"></i>
-                                        想要了解更多架构细节？请查看
-                                        <a href="#" onclick="document.getElementById('stm-tab').click(); return false;">STM Demo</a> 和
-                                        <a href="#" onclick="document.getElementById('ltm-tab').click(); return false;">LTM Demo</a>
-                                        标签页中的架构图
-                                    </small>
-                                </div>
-
-                                <h6 class="mt-3">完整代码示例:</h6>
-                                <div class="code-snippet">
-<pre id="combinedCodeSnippet">from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
-
-# 假设 stm_manager, ltm_manager 和 bedrock_runtime 已在上面初始化完成
-
-user_question = "根据我的偏好，能给我一些建议吗?"
-actor_id = "demo-user"
-session_id = "combined-session"
-
-# 1. 从 LTM 获取长期记忆
-ltm_memories = ltm_manager.search_long_term_memories(
-    query=user_question,
-    namespace_prefix="/",
-    top_k=3
-)
-
-# 2. 从 STM 获取会话历史
-try:
-    stm_turns = stm_manager.get_last_k_turns(
-        actor_id=actor_id,
-        session_id=session_id,
-        k=3
-    )
-except:
-    stm_turns = []
-
-# 3. 构建综合上下文
-context = ""
-if ltm_memories:
-    context += "长期记忆 (跨会话):\n"
-    for memory in ltm_memories:
-        content = memory.get('content', {})
-        text = content.get('text', '')
-        context += f"- {text}\n"
-
-if stm_turns:
-    context += "\n会话历史 (当前会话):\n"
-    for turn in stm_turns:
-        for msg in turn:
-            role = "用户" if msg.get('role') == MessageRole.USER.value else "助手"
-            text = msg.get('content', {}).get('text', '')
-            context += f"{role}: {text}\n"
-
-# 4. 调用 LLM (综合 STM + LTM 上下文)
-response = bedrock_runtime.converse(
-    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    messages=[{"role": "user", "content": [{"text": user_question}]}],
-    system=[{"text": context}]
-)
-assistant_response = response['output']['message']['content'][0]['text']
-
-# 5. 同时存储到 STM 和 LTM
-messages = [
-    ConversationalMessage(user_question, MessageRole.USER),
-    ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
-]
-stm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=messages)
-ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=messages)</pre>
-                                </div>
-
-                                <h6 class="mt-4">综合演示</h6>
-                                <div class="row">
-                                    <div class="col-md-8">
-                                        <label class="form-label">输入问题</label>
-                                        <textarea class="form-control" id="combinedUserInput" rows="3" placeholder="例如: 根据我的偏好，能给我一些建议吗?"></textarea>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label">Actor ID</label>
-                                        <input type="text" class="form-control" id="combinedActorId" value="demo-user">
-                                    </div>
-                                </div>
-                                <button class="btn btn-success mt-3" onclick="runCombinedDemo()">
-                                    <i class="fas fa-play me-2"></i>执行综合演示
-                                    <span class="spinner-border spinner-border-sm ms-2 loading" id="combinedLoading"></span>
-                                </button>
-
-                                <!-- Combined Demo Code Display -->
-                                <div class="row mt-3" id="combinedCodeArea" style="display: none;">
-                                    <div class="col-12">
-                                        <h6><i class="fas fa-code me-2"></i>执行代码</h6>
-                                        <div class="code-snippet" style="max-height: 400px; overflow-y: auto;">
-                                            <pre id="combinedCode" style="margin: 0;"></pre>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Combined Demo Log Display -->
-                                <div class="row mt-3" id="combinedLogArea" style="display: none;">
-                                    <div class="col-12">
-                                        <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
-                                        <div class="code-snippet" id="combinedLogDisplay" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                            <pre id="combinedLogContent" style="margin: 0; color: #d4d4d4;"></pre>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div id="combinedResult"></div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Comparison Table -->
                     <div class="demo-section mt-4">
                         <h5 class="text-primary">STM vs LTM 对比表</h5>
@@ -883,8 +720,104 @@ ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=message
         let stmActorId = '';
         let ltmActorId = '';
 
-        // Create STM Memory
+        // Create Memory (unified - includes both STM and LTM)
+        async function createMemory() {
+            const btn = document.getElementById('createMemoryBtn');
+
+            // 防止重复点击
+            if (btn.disabled) {
+                return;
+            }
+
+            // 禁用按钮
+            btn.disabled = true;
+            showLoading('createMemoryLoading', true);
+
+            // Show progress message
+            showResult('createMemoryResult', '⏳ 正在创建 Memory 资源（包含 STM 和 LTM 功能），请稍候...', 'success');
+
+            // Clear and prepare displays (keep code example visible)
+            document.getElementById('codeDisplayArea').style.display = 'block';
+            document.getElementById('logOutputArea').style.display = 'block';
+            document.getElementById('logContent').textContent = '';
+
+            try {
+                // Use EventSource for SSE
+                const eventSource = new EventSource('/api/memory/create-stream');
+                let finalResult = null;
+
+                eventSource.addEventListener('code', (event) => {
+                    // Display code
+                    const code = event.data;
+                    document.getElementById('codeContent').textContent = code;
+                    document.getElementById('codeDisplayArea').style.display = 'block';
+                });
+
+                eventSource.addEventListener('log', (event) => {
+                    // Append log
+                    const logDisplay = document.getElementById('logContent');
+                    logDisplay.textContent += event.data + '\n';
+                    // Auto-scroll to bottom
+                    logDisplay.scrollTop = logDisplay.scrollHeight;
+                });
+
+                eventSource.addEventListener('result', (event) => {
+                    // Final result
+                    finalResult = JSON.parse(event.data);
+
+                    if (finalResult.success) {
+                        // Reload memory list and auto-select the new memory
+                        loadMemoryList().then(() => {
+                            document.getElementById('memoryId').value = finalResult.memory_id;
+                        });
+
+                        let strategiesText = '';
+                        if (finalResult.strategies && finalResult.strategies.length > 0) {
+                            strategiesText = '\n\n配置的策略:\n';
+                            finalResult.strategies.forEach(s => {
+                                strategiesText += `- ${s.name} (${s.type})\n`;
+                            });
+                        }
+
+                        showResult('createMemoryResult', `✅ ${finalResult.message}\n\n已自动刷新下拉列表并选中新创建的 Memory${strategiesText}`, 'success');
+                    } else {
+                        showResult('createMemoryResult', '❌ ' + finalResult.message, 'error');
+                    }
+
+                    // Close connection
+                    eventSource.close();
+                    showLoading('createMemoryLoading', false);
+                    btn.disabled = false;
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('SSE Error:', error);
+                    eventSource.close();
+                    if (!finalResult) {
+                        showResult('createMemoryResult', '❌ 连接错误，请重试', 'error');
+                    }
+                    showLoading('createMemoryLoading', false);
+                    btn.disabled = false;
+                };
+
+            } catch (error) {
+                showResult('createMemoryResult', '❌ 错误: ' + error.message, 'error');
+                showLoading('createMemoryLoading', false);
+                btn.disabled = false;
+            }
+        }
+
+        // Create STM Memory (deprecated - for backward compatibility)
         async function createSTMMemory() {
+            const btn = document.getElementById('createSTMBtn');
+
+            // 防止重复点击
+            if (btn.disabled) {
+                return;
+            }
+
+            // 禁用按钮
+            btn.disabled = true;
             showLoading('createSTMLoading', true);
 
             // Show progress message
@@ -921,9 +854,11 @@ ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=message
                     finalResult = JSON.parse(event.data);
 
                     if (finalResult.success) {
-                        // Auto-fill Memory ID
-                        document.getElementById('stmMemoryId').value = finalResult.memory_id;
-                        showResult('createMemoryResult', `✅ ${finalResult.message}\n\nMemory ID 已自动填充到下方输入框`, 'success');
+                        // Reload memory list and auto-select the new memory
+                        loadMemoryList().then(() => {
+                            document.getElementById('stmMemoryId').value = finalResult.memory_id;
+                        });
+                        showResult('createMemoryResult', `✅ ${finalResult.message}\n\n已自动刷新下拉列表并选中新创建的 Memory`, 'success');
                     } else {
                         showResult('createMemoryResult', '❌ ' + finalResult.message, 'error');
                     }
@@ -931,6 +866,7 @@ ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=message
                     // Close connection
                     eventSource.close();
                     showLoading('createSTMLoading', false);
+                    btn.disabled = false;  // 重新启用按钮
                 });
 
                 eventSource.onerror = (error) => {
@@ -940,16 +876,27 @@ ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=message
                         showResult('createMemoryResult', '❌ 连接错误，请重试', 'error');
                     }
                     showLoading('createSTMLoading', false);
+                    btn.disabled = false;  // 重新启用按钮
                 };
 
             } catch (error) {
                 showResult('createMemoryResult', '❌ 错误: ' + error.message, 'error');
                 showLoading('createSTMLoading', false);
+                btn.disabled = false;  // 重新启用按钮
             }
         }
 
         // Create LTM Memory
         async function createLTMMemory() {
+            const btn = document.getElementById('createLTMBtn');
+
+            // 防止重复点击
+            if (btn.disabled) {
+                return;
+            }
+
+            // 禁用按钮
+            btn.disabled = true;
             showLoading('createLTMLoading', true);
 
             // Show progress message
@@ -986,8 +933,10 @@ ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=message
                     finalResult = JSON.parse(event.data);
 
                     if (finalResult.success) {
-                        // Auto-fill Memory ID
-                        document.getElementById('ltmMemoryId').value = finalResult.memory_id;
+                        // Reload memory list and auto-select the new memory
+                        loadMemoryList().then(() => {
+                            document.getElementById('ltmMemoryId').value = finalResult.memory_id;
+                        });
 
                         let strategiesText = '';
                         if (finalResult.strategies && finalResult.strategies.length > 0) {
@@ -997,7 +946,7 @@ ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=message
                             });
                         }
 
-                        showResult('createMemoryResult', `✅ ${finalResult.message}\n\nMemory ID 已自动填充到下方输入框${strategiesText}`, 'success');
+                        showResult('createMemoryResult', `✅ ${finalResult.message}\n\n已自动刷新下拉列表并选中新创建的 Memory${strategiesText}`, 'success');
                     } else {
                         showResult('createMemoryResult', '❌ ' + finalResult.message, 'error');
                     }
@@ -1005,6 +954,7 @@ ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=message
                     // Close connection
                     eventSource.close();
                     showLoading('createLTMLoading', false);
+                    btn.disabled = false;  // 重新启用按钮
                 });
 
                 eventSource.onerror = (error) => {
@@ -1014,11 +964,13 @@ ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=message
                         showResult('createMemoryResult', '❌ 连接错误，请重试', 'error');
                     }
                     showLoading('createLTMLoading', false);
+                    btn.disabled = false;  // 重新启用按钮
                 };
 
             } catch (error) {
                 showResult('createMemoryResult', '❌ 错误: ' + error.message, 'error');
                 showLoading('createLTMLoading', false);
+                btn.disabled = false;  // 重新启用按钮
             }
         }
 
@@ -1045,64 +997,64 @@ ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=message
             }, 100); // Display each log line every 100ms
         }
 
-        // List Memories
-        async function listMemories() {
-            showLoading('listMemoriesLoading', true);
-
+        // Load Memory List to dropdown
+        async function loadMemoryList() {
+            console.log('[DEBUG] loadMemoryList() 开始执行');
             try {
+                console.log('[DEBUG] 正在调用 /api/memory/list...');
                 const response = await fetch('/api/memory/list');
+                console.log('[DEBUG] API响应状态:', response.status);
                 const result = await response.json();
+                console.log('[DEBUG] API返回结果:', result);
 
-                if (result.success && result.memories.length > 0) {
-                    const tbody = document.getElementById('memoryListBody');
-                    tbody.innerHTML = '';
+                if (result.success) {
+                    // 获取下拉框元素
+                    const memorySelect = document.getElementById('memoryId');
+                    console.log('[DEBUG] 找到下拉框元素:', memorySelect ? '是' : '否');
 
-                    result.memories.forEach(memory => {
-                        const row = tbody.insertRow();
-                        const memoryType = memory.has_strategies ? 'LTM' : 'STM';
-                        const typeClass = memory.has_strategies ? 'badge bg-info' : 'badge bg-success';
+                    if (!memorySelect) {
+                        console.error('[ERROR] 未找到 id="memoryId" 的下拉框元素！');
+                        return;
+                    }
 
-                        row.innerHTML = `
-                            <td><small>${memory.memory_id}</small></td>
-                            <td>${memory.name}</td>
-                            <td><span class="badge bg-success">${memory.status}</span></td>
-                            <td><span class="${typeClass}">${memoryType}</span></td>
-                            <td><small>${new Date(memory.created_at).toLocaleString()}</small></td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-primary" onclick="selectMemory('${memory.memory_id}', ${memory.has_strategies})">
-                                    <i class="fas fa-check"></i> 选择
-                                </button>
-                                <button class="btn btn-sm btn-outline-info" onclick="viewMemoryRecords('${memory.memory_id}', ${memory.has_strategies})">
-                                    <i class="fas fa-eye"></i> 查看
-                                </button>
-                            </td>
-                        `;
+                    // 保存当前选中的值
+                    const currentValue = memorySelect.value;
+
+                    // 清空下拉框（保留提示项）
+                    memorySelect.innerHTML = '<option value="">请选择 Memory 资源</option>';
+                    console.log('[DEBUG] 已清空下拉框，准备添加选项');
+
+                    // 添加所有 Memory 选项
+                    result.memories.forEach((memory, index) => {
+                        const createdDate = new Date(memory.created_at).toLocaleString('zh-CN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+
+                        const strategyInfo = memory.has_strategies ? ' [含LTM策略]' : '';
+                        const optionText = `${memory.name}${strategyInfo} (${createdDate})`;
+                        const option = new Option(optionText, memory.memory_id);
+                        memorySelect.add(option);
+                        console.log(`[DEBUG] 已添加选项 ${index + 1}/${result.count}: ${memory.name}`);
                     });
 
-                    document.getElementById('memoryListSection').style.display = 'block';
-                    showResult('createMemoryResult', `✅ ${result.message}`, 'success');
-                } else if (result.success && result.memories.length === 0) {
-                    showResult('createMemoryResult', '未找到任何 Memory 资源，请先创建。', 'error');
+                    // 恢复之前的选择（如果还存在）
+                    if (currentValue) memorySelect.value = currentValue;
+
+                    console.log(`✓ 已加载 ${result.count} 个 Memory 资源`);
+                    console.log('[DEBUG] 当前下拉框选项数量:', memorySelect.options.length);
                 } else {
-                    showResult('createMemoryResult', '❌ ' + result.message, 'error');
+                    console.error('加载 Memory 列表失败:', result.message);
                 }
             } catch (error) {
-                showResult('createMemoryResult', '❌ 错误: ' + error.message, 'error');
-            } finally {
-                showLoading('listMemoriesLoading', false);
+                console.error('加载 Memory 列表错误:', error);
+                console.error('[DEBUG] 错误堆栈:', error.stack);
             }
         }
 
-        // Select Memory
-        function selectMemory(memoryId, hasStrategies) {
-            if (hasStrategies) {
-                document.getElementById('ltmMemoryId').value = memoryId;
-                showResult('createMemoryResult', `✅ 已选择 LTM Memory: ${memoryId}`, 'success');
-            } else {
-                document.getElementById('stmMemoryId').value = memoryId;
-                showResult('createMemoryResult', `✅ 已选择 STM Memory: ${memoryId}`, 'success');
-            }
-        }
 
         // View Memory Records
         async function viewMemoryRecords(memoryId, hasStrategies) {
@@ -1173,11 +1125,10 @@ ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=message
 
         // Initialize Memory
         async function initializeMemory() {
-            const stmMemoryId = document.getElementById('stmMemoryId').value.trim();
-            const ltmMemoryId = document.getElementById('ltmMemoryId').value.trim();
+            const memoryId = document.getElementById('memoryId').value.trim();
 
-            if (!stmMemoryId || !ltmMemoryId) {
-                showResult('initResult', '请输入 STM 和 LTM Memory ID', 'error');
+            if (!memoryId) {
+                showResult('initResult', '请选择一个 Memory 资源', 'error');
                 return;
             }
 
@@ -1190,8 +1141,7 @@ ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=message
             try {
                 // Build URL with query parameters
                 const params = new URLSearchParams({
-                    stm_memory_id: stmMemoryId,
-                    ltm_memory_id: ltmMemoryId
+                    memory_id: memoryId
                 });
 
                 const eventSource = new EventSource(`/api/memory/initialize-stream?${params}`);
@@ -1583,111 +1533,6 @@ ${memoryText}
         }
 
         // Combined Demo
-        async function runCombinedDemo() {
-            const userQuestion = document.getElementById('combinedUserInput').value.trim();
-            const actorId = document.getElementById('combinedActorId').value.trim();
-
-            if (!userQuestion) {
-                showResult('combinedResult', '请输入问题', 'error');
-                return;
-            }
-
-            showLoading('combinedLoading', true);
-
-            // Show Combined Demo specific log and code areas
-            document.getElementById('combinedLogArea').style.display = 'block';
-            document.getElementById('combinedCodeArea').style.display = 'none';
-            document.getElementById('combinedLogContent').textContent = '';
-            document.getElementById('combinedCode').textContent = '';
-
-            try {
-                // Build URL with query parameters
-                const params = new URLSearchParams({
-                    user_question: userQuestion,
-                    actor_id: actorId
-                });
-
-                const eventSource = new EventSource(`/api/memory/combined-stream?${params}`);
-                let finalResult = null;
-
-                eventSource.addEventListener('code', (event) => {
-                    const code = event.data;
-                    document.getElementById('combinedCode').textContent = code;
-                    document.getElementById('combinedCodeArea').style.display = 'block';
-                });
-
-                eventSource.addEventListener('log', (event) => {
-                    const logContent = document.getElementById('combinedLogContent');
-                    const logDisplay = document.getElementById('combinedLogDisplay');
-                    logContent.textContent += event.data + '\n';
-                    logDisplay.scrollTop = logDisplay.scrollHeight;
-                });
-
-                eventSource.addEventListener('result', (event) => {
-                    finalResult = JSON.parse(event.data);
-
-                    if (finalResult.success) {
-                        let contextText = '';
-
-                        if (finalResult.ltm_memories && finalResult.ltm_memories.length > 0) {
-                            contextText += '长期记忆 (跨会话):\n';
-                            finalResult.ltm_memories.forEach(m => {
-                                contextText += `- ${m}\n`;
-                            });
-                            contextText += '\n';
-                        }
-
-                        if (finalResult.stm_history && finalResult.stm_history.length > 0) {
-                            contextText += '会话历史 (当前会话):\n';
-                            finalResult.stm_history.forEach(h => {
-                                contextText += `${h.role}: ${h.text}\n`;
-                            });
-                        }
-
-                        if (!contextText) {
-                            contextText = '暂无历史记忆';
-                        }
-
-                        const output = `✅ ${finalResult.message}
-
-Session ID: ${finalResult.session_id}
-
-${contextText}
-
-当前问题: ${finalResult.user_question}
-
-助手回答 (综合记忆): ${finalResult.assistant_response}
-
----
-说明:
-- 助手同时利用了短期会话记忆和长期用户记忆
-- 这是生产环境的最佳实践模式
-- 既保证了对话连贯性，又实现了个性化`;
-
-                        showResult('combinedResult', output, 'success');
-                    } else {
-                        showResult('combinedResult', '❌ ' + finalResult.message, 'error');
-                    }
-
-                    eventSource.close();
-                    showLoading('combinedLoading', false);
-                });
-
-                eventSource.onerror = (error) => {
-                    console.error('SSE Error:', error);
-                    eventSource.close();
-                    if (!finalResult) {
-                        showResult('combinedResult', '❌ 连接错误，请重试', 'error');
-                    }
-                    showLoading('combinedLoading', false);
-                };
-
-            } catch (error) {
-                showResult('combinedResult', '❌ 错误: ' + error.message, 'error');
-                showLoading('combinedLoading', false);
-            }
-        }
-
         // Helper functions
         function showResult(elementId, message, type) {
             const resultDiv = document.getElementById(elementId);
@@ -1981,82 +1826,10 @@ print("✅ 已存储，跨会话记忆功能展示完成")`;
             }
         }
 
-        // Combined Demo - Update code when user types
-        document.getElementById('combinedUserInput').addEventListener('input', function(e) {
-            updateCombinedCode();
+        // Auto-load memory list when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadMemoryList();
         });
-        document.getElementById('combinedActorId').addEventListener('input', function(e) {
-            updateCombinedCode();
-        });
-
-        function updateCombinedCode() {
-            const userQuestion = document.getElementById('combinedUserInput').value || '根据我的偏好，能给我一些建议吗?';
-            const actorId = document.getElementById('combinedActorId').value || 'demo-user';
-            const sessionId = 'combined-session-xxx';
-
-            const codeSnippet = `from bedrock_agentcore.memory.constants import ConversationalMessage, MessageRole
-
-# 假设 stm_manager, ltm_manager 和 bedrock_runtime 已在上面初始化完成
-
-user_question = "${escapeCodeValue(userQuestion)}"
-actor_id = "${escapeCodeValue(actorId)}"
-session_id = "${sessionId}"
-
-# 1. 从 LTM 获取长期记忆
-ltm_memories = ltm_manager.search_long_term_memories(
-    query=user_question,
-    namespace_prefix="/",
-    top_k=3
-)
-
-# 2. 从 STM 获取会话历史
-try:
-    stm_turns = stm_manager.get_last_k_turns(
-        actor_id=actor_id,
-        session_id=session_id,
-        k=3
-    )
-except:
-    stm_turns = []
-
-# 3. 构建综合上下文
-context = ""
-if ltm_memories:
-    context += "长期记忆 (跨会话):\\n"
-    for memory in ltm_memories:
-        content = memory.get('content', {})
-        text = content.get('text', '')
-        context += f"- {text}\\n"
-
-if stm_turns:
-    context += "\\n会话历史 (当前会话):\\n"
-    for turn in stm_turns:
-        for msg in turn:
-            role = "用户" if msg.get('role') == MessageRole.USER.value else "助手"
-            text = msg.get('content', {}).get('text', '')
-            context += f"{role}: {text}\\n"
-
-# 4. 调用 LLM (综合 STM + LTM 上下文)
-response = bedrock_runtime.converse(
-    modelId="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-    messages=[{"role": "user", "content": [{"text": user_question}]}],
-    system=[{"text": context}]
-)
-assistant_response = response['output']['message']['content'][0]['text']
-
-# 5. 同时存储到 STM 和 LTM
-messages = [
-    ConversationalMessage(user_question, MessageRole.USER),
-    ConversationalMessage(assistant_response, MessageRole.ASSISTANT)
-]
-stm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=messages)
-ltm_manager.add_turns(actor_id=actor_id, session_id=session_id, messages=messages)`;
-
-            const codeBlock = document.getElementById('combinedCodeSnippet');
-            if (codeBlock) {
-                codeBlock.textContent = codeSnippet;
-            }
-        }
 
     </script>
 </body>
