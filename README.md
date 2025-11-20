@@ -34,12 +34,20 @@ The web application provides an intuitive interface for accessing AgentCore capa
    - Interactive web UI with live demonstrations
    - Memory resource management and monitoring
 
+4. **⚙️ AgentCore Runtime** - Deploy and scale AI agents with managed infrastructure:
+   - **Direct Code Deployment**: Simple .zip package deployment for Python projects
+   - **Container Deployment**: Docker-based deployment for complex environments
+   - Real-time SSE streaming for deployment progress
+   - Complete lifecycle management (create, deploy, invoke, delete)
+   - Interactive web UI with step-by-step guidance
+   - State persistence and automatic field population
+   - [📚 完整文档](./docs/agentcore_runtime/)
+
 ### Roadmap Features
 
 The following AgentCore platform services are planned for future releases:
 
 - **🔗 AgentCore Gateway** - Transform existing APIs into agent-compatible tools
-- **⚙️ AgentCore Runtime** - Deploy and scale agents with managed infrastructure
 
 ## 📦 Prerequisites
 
@@ -95,9 +103,43 @@ Create an IAM role or user with the following permissions:
     {
       "Effect": "Allow",
       "Action": [
-        "bedrock-agentcore:*"
+        "bedrock-agentcore:*",
+        "bedrock-agentcore-control:*"
       ],
       "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::bedrock-agentcore-code-*",
+        "arn:aws:s3:::bedrock-agentcore-code-*/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:DescribeImages",
+        "ecr:DescribeRepositories"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::*:role/AmazonBedrockAgentCore*"
     }
   ]
 }
@@ -106,6 +148,8 @@ Create an IAM role or user with the following permissions:
 Or attach these managed policies:
 - `AmazonBedrockFullAccess`
 - Custom policy for AgentCore access (as shown above)
+
+**Note:** The additional S3, ECR, and IAM permissions are only needed if using AgentCore Runtime features.
 
 ## 🚀 Installation
 
@@ -164,6 +208,22 @@ LOGIN_USERNAME=admin
 LOGIN_PASSWORD=your_secure_password
 ```
 
+### Runtime Configuration (Optional)
+
+For AgentCore Runtime features, add the following to your `.env`:
+
+```bash
+# AgentCore Runtime - Direct Code Deployment
+S3_BUCKET=bedrock-agentcore-code-{account_id}-{region}
+EXECUTION_ROLE_ARN=arn:aws:iam::{account_id}:role/AmazonBedrockAgentCoreSDKRuntime-{region}
+DEPLOYMENT_PACKAGE_PATH=deployment_packages/strands_agent/deployment_package.zip
+
+# AgentCore Runtime - Container Deployment
+CONTAINER_ECR_REPOSITORY_NAME=my-strands-agent
+CONTAINER_IMAGE_TAG=latest
+CONTAINER_EXECUTION_ROLE_ARN=arn:aws:iam::{account_id}:role/AmazonBedrockAgentCoreContainerRuntime-{region}
+```
+
 ### Configuration Options
 
 | Variable | Description | Default |
@@ -175,6 +235,8 @@ LOGIN_PASSWORD=your_secure_password
 | `AGENTCORE_ENDPOINT` | AgentCore endpoint URL | Region-specific |
 | `SESSION_TIMEOUT_SECONDS` | Session timeout | `1200` (20 min) |
 | `LOGIN_ENABLE` | Enable authentication | `true` |
+| `S3_BUCKET` | S3 bucket for Runtime deployments | Optional |
+| `EXECUTION_ROLE_ARN` | IAM role for Runtime execution | Optional |
 
 ## 🎯 Usage
 
@@ -271,9 +333,48 @@ print("✓ Visualization saved successfully!")
 - Navigate to "Memory Resource Management" section to create STM/LTM memories
 - No additional setup required
 
+### Using AgentCore Runtime
+
+**Deploy and Manage AI Agents**
+
+1. Navigate to **AgentCore Runtime** tab
+2. Choose deployment method:
+
+**Direct Code Deployment** (Recommended for Python projects)
+- Part 1: Review prerequisites
+- Part 2-4: Follow setup steps (Mock demonstrations)
+- Part 5: Deploy to Runtime (Real AWS API)
+  - Uploads .zip package to S3
+  - Creates AgentCore Runtime
+  - Streams deployment progress via SSE
+- Part 6: Check Runtime status (Wait for READY)
+- Part 7: Invoke your deployed Agent
+- Part 8: Clean up resources
+
+**Container Deployment** (For complex environments)
+- Part 1: Review prerequisites (Docker, ECR setup required)
+- Part 2-6: Follow container build steps (Mock demonstrations)
+- Part 7: Deploy container to Runtime (Real AWS API)
+- Part 8-10: Status check, invoke, and cleanup
+
+**Key Features:**
+- Real-time SSE streaming for deployment progress
+- Automatic field population (Runtime ARN/ID)
+- State persistence across page refreshes
+- Step-by-step interactive guidance
+- [📚 详细文档](./docs/agentcore_runtime/)
+
+**Prerequisites:**
+- For Direct Code: S3 bucket and deployment package
+- For Container: ECR repository with ARM64 Docker image
+- IAM roles with appropriate permissions
+- Run `python scripts/check_runtime_prerequisites.py` to verify setup
+
 ### Session Management
 
 - **Code Sessions**: Persistent across executions within the same session
+- **Memory Sessions**: Managed per memory resource
+- **Runtime Sessions**: Tracked per deployment with automatic cleanup
 - **Session Status**: View active sessions via the `/api/sessions/status` endpoint
 
 ## 🏗️ Project Structure
@@ -283,6 +384,7 @@ agentcore-on-aws-demo/
 ├── app.py                          # Main FastAPI application
 ├── agentcore_code_interpreter.py   # Code interpreter integration
 ├── agentcore_memory_api.py         # Memory API backend module
+├── agentcore_runtime_api.py        # Runtime API backend module
 ├── requirements.txt                # Python dependencies
 ├── .env                           # Environment configuration (create this)
 ├── templates/                     # HTML templates
@@ -290,13 +392,29 @@ agentcore-on-aws-demo/
 │   ├── login.html                 # Login page
 │   ├── code-interpreter-agentcore.html # Code interpreter UI
 │   ├── agentcore-memory.html      # Memory demonstrations UI
+│   ├── agentcore-runtime.html     # Runtime deployment UI
 │   └── agentcore-*.html          # Other feature templates
 ├── static/                        # Static assets
 │   ├── css/                       # Stylesheets
 │   ├── js/                        # JavaScript files
+│   │   ├── runtime.js             # Direct Code deployment frontend
+│   │   └── runtime-container.js   # Container deployment frontend
 │   └── images/                    # Images and diagrams
 │       └── memory/                # Memory architecture diagrams
+├── deployment_packages/           # Runtime deployment packages
+│   └── strands_agent/
+│       ├── deployment_package.zip # Direct Code deployment package
+│       ├── Dockerfile             # Container image definition
+│       └── agent.py               # Agent source code
+├── scripts/                       # Utility scripts
+│   └── check_runtime_prerequisites.py # Runtime setup validation
 └── docs/                          # Documentation files
+    ├── agentcore_runtime/         # Runtime module documentation
+    │   ├── README.md              # Documentation index
+    │   ├── 01-功能概述.md          # Feature overview
+    │   ├── 02-设计实现.md          # Design and implementation
+    │   ├── 03-运行步骤指南.md       # Step-by-step guide
+    │   └── 04-快速参考.md          # Quick reference
     ├── MEMORY_DEMO_README.md      # Memory demo guide
     ├── MEMORY_ARCHITECTURE.md     # Memory architecture details
     └── STREAMING_RESPONSE_GUIDE.md # Streaming implementation guide
@@ -361,6 +479,29 @@ cat .env | grep AWS_ACCESS_KEY_ID
 lsof -ti:8090 | xargs kill -9
 ```
 
+**4. Runtime deployment fails**
+```bash
+# Verify prerequisites
+python scripts/check_runtime_prerequisites.py
+
+# Check S3 bucket exists
+aws s3 ls s3://bedrock-agentcore-code-{account_id}-{region}
+
+# Verify IAM role permissions
+aws iam get-role --role-name AmazonBedrockAgentCoreSDKRuntime-{region}
+```
+
+**5. Container image not found**
+```bash
+# List ECR images
+aws ecr describe-images --repository-name {repo_name} --region us-west-2
+
+# Verify image architecture is ARM64
+docker manifest inspect {ecr_image_uri} | grep architecture
+```
+
+For more Runtime troubleshooting, see [Runtime Documentation](./docs/agentcore_runtime/03-运行步骤指南.md#常见问题)
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
@@ -388,4 +529,4 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 **Built with ❤️ using Amazon Bedrock AgentCore and FastAPI**
 
-*Last Updated: 2025-11-07*
+*Last Updated: 2025-11-20*
