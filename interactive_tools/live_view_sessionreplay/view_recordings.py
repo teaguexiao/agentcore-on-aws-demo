@@ -12,7 +12,7 @@ Example:
     python3 view_recordings.py --bucket session-record-test-123456789012 --prefix replay-data
 
 Environment Variables:
-    AWS_REGION          - AWS region (default: us-west-2)
+    AWS_REGION          - AWS region (default: us-east-2)
     AWS_PROFILE         - AWS profile to use for credentials (optional)
 """
 

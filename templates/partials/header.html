@@ -32,15 +32,23 @@
             <li class="nav-item">
                 <a class="nav-link {% if active_page == 'agentcore-runtime' %}active{% endif %}" href="/agentcore-runtime">AgentCore Runtime</a>
             </li>
-            
+
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% if active_page == 'browser-use' or active_page == 'code-interpreter' %}active{% endif %}"
-                   data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
-                    AgentCore Tools
+                <a class="nav-link dropdown-toggle {% if active_page == 'agentcore-tool' %}active{% endif %}"
+                   href="#"
+                   id="agentcoreToolDropdown"
+                   role="button"
+                   data-bs-toggle="dropdown"
+                   aria-expanded="false">
+                    AgentCore Tool
                 </a>
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item {% if active_page == 'browser-use' %}active{% endif %}" href="/browser-use-agentcore">Browser Use</a></li>
-                    <li><a class="dropdown-item {% if active_page == 'code-interpreter' %}active{% endif %}" href="/code-interpreter-agentcore">Code Interpreter</a></li>
+                <ul class="dropdown-menu" aria-labelledby="agentcoreToolDropdown">
+                    <li><a class="dropdown-item" href="/agentcore-tool?tool=code-interpreter">
+                        <i class="fas fa-code me-2"></i>Code Interpreter
+                    </a></li>
+                    <li><a class="dropdown-item" href="/agentcore-tool?tool=browser-tool">
+                        <i class="fas fa-globe me-2"></i>Browser Tool
+                    </a></li>
                 </ul>
             </li>
             <li class="nav-item">

@@ -1,6 +1,6 @@
 # AgentCore on AWS Demo
 
-A comprehensive web application demonstrating Amazon Bedrock AgentCore capabilities for building AI-powered applications. This project showcases browser automation, code interpretation, and other AgentCore platform services in a secure, production-ready web interface powered by Claude models.
+A comprehensive web application demonstrating Amazon Bedrock AgentCore capabilities for building AI-powered applications. This project showcases code interpretation and other AgentCore platform services in a secure, production-ready web interface powered by Claude models.
 
 ## 🌟 Key Features
 
@@ -10,7 +10,7 @@ A comprehensive web application demonstrating Amazon Bedrock AgentCore capabilit
 - **⚡ Production Ready**: Enterprise-grade reliability and performance
 - **💰 Cost Efficient**: Serverless architecture with pay-per-use model
 - **🌐 Real-time Monitoring**: WebSocket-based live updates and comprehensive logging
-- **🎯 Multiple Services**: Browser automation, code execution, memory, and gateway features
+- **🎯 Multiple Services**: Code execution, memory, and gateway features
 
 ## ✨ Features
 
@@ -20,19 +20,13 @@ The web application provides an intuitive interface for accessing AgentCore capa
 
 1. **🏠 Home** - Main dashboard with overview and quick start guide
 
-2. **🌐 Browser Automation** - AI-powered browser automation using AgentCore BrowserTool:
-   - Live browser viewing with real-time interaction
-   - Natural language browser control
-   - Automated web research and data extraction
-   - Built-in safety and monitoring
-
-3. **💻 Code Interpreter** - Secure Python code execution via AgentCore:
+2. **💻 Code Interpreter** - Secure Python code execution via AgentCore:
    - Isolated execution environment
    - Session management and persistence
    - Support for data science libraries (numpy, pandas, matplotlib, etc.)
    - Real-time output streaming
 
-4. **🧠 AgentCore Memory** - Persistent knowledge management with interactive demonstrations:
+3. **🧠 AgentCore Memory** - Persistent knowledge management with interactive demonstrations:
    - **Short-term Memory (STM)**: Session-based conversational memory
    - **Long-term Memory (LTM)**: Cross-session semantic memory with intelligent extraction
    - **Combined Mode**: Best practice integration of STM + LTM
@@ -40,12 +34,20 @@ The web application provides an intuitive interface for accessing AgentCore capa
    - Interactive web UI with live demonstrations
    - Memory resource management and monitoring
 
+4. **⚙️ AgentCore Runtime** - Deploy and scale AI agents with managed infrastructure:
+   - **Direct Code Deployment**: Simple .zip package deployment for Python projects
+   - **Container Deployment**: Docker-based deployment for complex environments
+   - Real-time SSE streaming for deployment progress
+   - Complete lifecycle management (create, deploy, invoke, delete)
+   - Interactive web UI with step-by-step guidance
+   - State persistence and automatic field population
+   - [📚 完整文档](./docs/agentcore_runtime/)
+
 ### Roadmap Features
 
 The following AgentCore platform services are planned for future releases:
 
 - **🔗 AgentCore Gateway** - Transform existing APIs into agent-compatible tools
-- **⚙️ AgentCore Runtime** - Deploy and scale agents with managed infrastructure
 
 ## 📦 Prerequisites
 
@@ -70,7 +72,7 @@ The following AgentCore platform services are planned for future releases:
 4. Wait for approval (usually instant for most regions)
 
 **Supported Regions:**
-- `us-west-2` (Oregon) - Recommended
+- `us-east-2` (Oregon) - Recommended
 - `us-east-1` (N. Virginia)
 
 #### 2. Enable Amazon Bedrock AgentCore
@@ -101,9 +103,43 @@ Create an IAM role or user with the following permissions:
     {
       "Effect": "Allow",
       "Action": [
-        "bedrock-agentcore:*"
+        "bedrock-agentcore:*",
+        "bedrock-agentcore-control:*"
       ],
       "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::bedrock-agentcore-code-*",
+        "arn:aws:s3:::bedrock-agentcore-code-*/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:DescribeImages",
+        "ecr:DescribeRepositories"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::*:role/AmazonBedrockAgentCore*"
     }
   ]
 }
@@ -112,6 +148,8 @@ Create an IAM role or user with the following permissions:
 Or attach these managed policies:
 - `AmazonBedrockFullAccess`
 - Custom policy for AgentCore access (as shown above)
+
+**Note:** The additional S3, ECR, and IAM permissions are only needed if using AgentCore Runtime features.
 
 ## 🚀 Installation
 
@@ -152,13 +190,13 @@ Create a `.env` file in the project root directory:
 # AWS Configuration
 AWS_ACCESS_KEY_ID=your_aws_access_key_id
 AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
-AWS_DEFAULT_REGION=us-west-2
+AWS_DEFAULT_REGION=us-east-2
 
 # Bedrock Configuration
 MODEL_ID=us.anthropic.claude-3-7-sonnet-20250219-v1:0
 
 # AgentCore Configuration
-AGENTCORE_ENDPOINT=https://bedrock-agentcore.us-west-2.amazonaws.com
+AGENTCORE_ENDPOINT=https://bedrock-agentcore.us-east-2.amazonaws.com
 
 # Session Configuration
 SESSION_TIMEOUT_SECONDS=1200
@@ -170,17 +208,35 @@ LOGIN_USERNAME=admin
 LOGIN_PASSWORD=your_secure_password
 ```
 
+### Runtime Configuration (Optional)
+
+For AgentCore Runtime features, add the following to your `.env`:
+
+```bash
+# AgentCore Runtime - Direct Code Deployment
+S3_BUCKET=bedrock-agentcore-code-{account_id}-{region}
+EXECUTION_ROLE_ARN=arn:aws:iam::{account_id}:role/AmazonBedrockAgentCoreSDKRuntime-{region}
+DEPLOYMENT_PACKAGE_PATH=deployment_packages/strands_agent/deployment_package.zip
+
+# AgentCore Runtime - Container Deployment
+CONTAINER_ECR_REPOSITORY_NAME=my-strands-agent
+CONTAINER_IMAGE_TAG=latest
+CONTAINER_EXECUTION_ROLE_ARN=arn:aws:iam::{account_id}:role/AmazonBedrockAgentCoreContainerRuntime-{region}
+```
+
 ### Configuration Options
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `AWS_ACCESS_KEY_ID` | AWS access key | Required |
 | `AWS_SECRET_ACCESS_KEY` | AWS secret key | Required |
-| `AWS_DEFAULT_REGION` | AWS region | `us-west-2` |
+| `AWS_DEFAULT_REGION` | AWS region | `us-east-2` |
 | `MODEL_ID` | Bedrock model ID | Claude 3.7 Sonnet |
 | `AGENTCORE_ENDPOINT` | AgentCore endpoint URL | Region-specific |
 | `SESSION_TIMEOUT_SECONDS` | Session timeout | `1200` (20 min) |
 | `LOGIN_ENABLE` | Enable authentication | `true` |
+| `S3_BUCKET` | S3 bucket for Runtime deployments | Optional |
+| `EXECUTION_ROLE_ARN` | IAM role for Runtime execution | Optional |
 
 ## 🎯 Usage
 
@@ -201,26 +257,6 @@ The application will start on `http://localhost:8090` by default.
 1. Open your browser and navigate to `http://localhost:8090`
 2. Log in with your credentials (if authentication is enabled)
 3. Navigate through the tabs to access different features
-
-### Using Browser Automation
-
-**AgentCore BrowserTool**
-
-1. Navigate to **Browser Use** → **AgentCore BrowserTool** tab
-2. Click **Start Browser Session** to initialize a browser instance
-3. Enter your browser automation task in the prompt field:
-   ```
-   Example: "Search for the latest AWS news and summarize the top 3 articles"
-   ```
-4. Click **Run Browser Task**
-5. Watch the AI interact with the browser in real-time via the embedded viewer
-6. View detailed execution logs and results
-
-**Example Prompts:**
-- "Find the top-rated Python books on Amazon and compare prices"
-- "Research the latest developments in quantum computing"
-- "Browse GitHub for trending AI/ML repositories this week"
-- "Navigate to Wikipedia and summarize the article on neural networks"
 
 ### Using Code Interpreter
 
@@ -297,10 +333,48 @@ print("✓ Visualization saved successfully!")
 - Navigate to "Memory Resource Management" section to create STM/LTM memories
 - No additional setup required
 
+### Using AgentCore Runtime
+
+**Deploy and Manage AI Agents**
+
+1. Navigate to **AgentCore Runtime** tab
+2. Choose deployment method:
+
+**Direct Code Deployment** (Recommended for Python projects)
+- Part 1: Review prerequisites
+- Part 2-4: Follow setup steps (Mock demonstrations)
+- Part 5: Deploy to Runtime (Real AWS API)
+  - Uploads .zip package to S3
+  - Creates AgentCore Runtime
+  - Streams deployment progress via SSE
+- Part 6: Check Runtime status (Wait for READY)
+- Part 7: Invoke your deployed Agent
+- Part 8: Clean up resources
+
+**Container Deployment** (For complex environments)
+- Part 1: Review prerequisites (Docker, ECR setup required)
+- Part 2-6: Follow container build steps (Mock demonstrations)
+- Part 7: Deploy container to Runtime (Real AWS API)
+- Part 8-10: Status check, invoke, and cleanup
+
+**Key Features:**
+- Real-time SSE streaming for deployment progress
+- Automatic field population (Runtime ARN/ID)
+- State persistence across page refreshes
+- Step-by-step interactive guidance
+- [📚 详细文档](./docs/agentcore_runtime/)
+
+**Prerequisites:**
+- For Direct Code: S3 bucket and deployment package
+- For Container: ECR repository with ARM64 Docker image
+- IAM roles with appropriate permissions
+- Run `python scripts/check_runtime_prerequisites.py` to verify setup
+
 ### Session Management
 
-- **Browser Sessions**: Automatically managed with 20-minute timeout
 - **Code Sessions**: Persistent across executions within the same session
+- **Memory Sessions**: Managed per memory resource
+- **Runtime Sessions**: Tracked per deployment with automatic cleanup
 - **Session Status**: View active sessions via the `/api/sessions/status` endpoint
 
 ## 🏗️ Project Structure
@@ -308,25 +382,39 @@ print("✓ Visualization saved successfully!")
 ```
 agentcore-on-aws-demo/
 ├── app.py                          # Main FastAPI application
-├── agentcore_browser_tool.py       # Browser automation integration
 ├── agentcore_code_interpreter.py   # Code interpreter integration
 ├── agentcore_memory_api.py         # Memory API backend module
+├── agentcore_runtime_api.py        # Runtime API backend module
 ├── requirements.txt                # Python dependencies
 ├── .env                           # Environment configuration (create this)
 ├── templates/                     # HTML templates
 │   ├── index.html                 # Home page
 │   ├── login.html                 # Login page
-│   ├── browser-use-agentcore.html # Browser automation UI
 │   ├── code-interpreter-agentcore.html # Code interpreter UI
 │   ├── agentcore-memory.html      # Memory demonstrations UI
+│   ├── agentcore-runtime.html     # Runtime deployment UI
 │   └── agentcore-*.html          # Other feature templates
 ├── static/                        # Static assets
 │   ├── css/                       # Stylesheets
 │   ├── js/                        # JavaScript files
+│   │   ├── runtime.js             # Direct Code deployment frontend
+│   │   └── runtime-container.js   # Container deployment frontend
 │   └── images/                    # Images and diagrams
 │       └── memory/                # Memory architecture diagrams
-├── interactive_tools/             # Browser viewer and utilities
+├── deployment_packages/           # Runtime deployment packages
+│   └── strands_agent/
+│       ├── deployment_package.zip # Direct Code deployment package
+│       ├── Dockerfile             # Container image definition
+│       └── agent.py               # Agent source code
+├── scripts/                       # Utility scripts
+│   └── check_runtime_prerequisites.py # Runtime setup validation
 └── docs/                          # Documentation files
+    ├── agentcore_runtime/         # Runtime module documentation
+    │   ├── README.md              # Documentation index
+    │   ├── 01-功能概述.md          # Feature overview
+    │   ├── 02-设计实现.md          # Design and implementation
+    │   ├── 03-运行步骤指南.md       # Step-by-step guide
+    │   └── 04-快速参考.md          # Quick reference
     ├── MEMORY_DEMO_README.md      # Memory demo guide
     ├── MEMORY_ARCHITECTURE.md     # Memory architecture details
     └── STREAMING_RESPONSE_GUIDE.md # Streaming implementation guide
@@ -385,16 +473,34 @@ pip install -r requirements.txt --force-reinstall
 cat .env | grep AWS_ACCESS_KEY_ID
 ```
 
-**3. Browser session fails to start**
-- Verify AgentCore is enabled in your AWS region
-- Check IAM permissions for AgentCore services
-- Review CloudWatch logs for detailed error messages
-
-**4. Port already in use**
+**3. Port already in use**
 ```bash
 # Change port in app.py or kill existing process
 lsof -ti:8090 | xargs kill -9
 ```
+
+**4. Runtime deployment fails**
+```bash
+# Verify prerequisites
+python scripts/check_runtime_prerequisites.py
+
+# Check S3 bucket exists
+aws s3 ls s3://bedrock-agentcore-code-{account_id}-{region}
+
+# Verify IAM role permissions
+aws iam get-role --role-name AmazonBedrockAgentCoreSDKRuntime-{region}
+```
+
+**5. Container image not found**
+```bash
+# List ECR images
+aws ecr describe-images --repository-name {repo_name} --region us-west-2
+
+# Verify image architecture is ARM64
+docker manifest inspect {ecr_image_uri} | grep architecture
+```
+
+For more Runtime troubleshooting, see [Runtime Documentation](./docs/agentcore_runtime/03-运行步骤指南.md#常见问题)
 
 ## 📄 License
 
@@ -414,7 +520,6 @@ Built with:
 - [Amazon Bedrock](https://aws.amazon.com/bedrock/) - Foundation models and AI services
 - [Amazon Bedrock AgentCore](https://aws.amazon.com/bedrock/agentcore/) - Agent platform services
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework
-- [browser-use](https://github.com/browser-use/browser-use) - Browser automation library
 
 ## 🚀 Contributing
 
@@ -424,4 +529,4 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 **Built with ❤️ using Amazon Bedrock AgentCore and FastAPI**
 
-*Last Updated: 2025-11-07*
+*Last Updated: 2025-11-20*

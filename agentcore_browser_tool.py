@@ -135,7 +135,7 @@ class AgentcoreSessionManager:
 # Initialize session manager
 agentcore_session_manager = AgentcoreSessionManager()
 
-async def start_agentcore_browser(session_id: str = None, region: str = "us-west-2"):
+async def start_agentcore_browser(session_id: str = None, region: str = "us-east-2"):
     """Start Agentcore browser session"""
     
     if not agentcore_session_manager:

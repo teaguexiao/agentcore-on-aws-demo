@@ -177,7 +177,7 @@ async function runAgentcoreBrowserTask(prompt) {
             },
             body: new URLSearchParams({
                 'session_id': agentcoreSessionId,
-                'region': 'us-west-2'
+                'region': 'us-east-2'
             })
         });
         

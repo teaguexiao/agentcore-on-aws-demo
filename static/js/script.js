@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const stopDesktopBtn = document.getElementById('stop-desktop');
     const sandboxTimerSpan = document.getElementById('sandbox-timer');
     const sandboxControlsDiv = document.getElementById('sandbox-controls');
-    
+
     // Session management
     const sessionId = generateSessionId();
     

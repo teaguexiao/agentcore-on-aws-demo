@@ -2,7 +2,7 @@ import os
 import asyncio
 import sys
 import threading
-from fastapi import FastAPI, Request, Form, WebSocket, WebSocketDisconnect, BackgroundTasks, Depends, Response, Cookie
+from fastapi import FastAPI, Request, Form, WebSocket, WebSocketDisconnect, BackgroundTasks, Depends, Response, Cookie, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -29,16 +29,16 @@ load_dotenv()
 #     stop_computer_task, kill_computer_desktop, init_computer_use_vars
 # )
 
-# Import Agentcore browser tool functions
-from agentcore_browser_tool import (
-    start_agentcore_browser, run_agentcore_browser_task, stop_agentcore_browser,
-    init_agentcore_vars, agentcore_session_manager
-)
-
 # Import AgentCore code interpreter functions
 from agentcore_code_interpreter import (
     execute_agentcore_code, reset_agentcore_sessions, get_active_sessions,
     execute_file_management_demo, execute_shell_command_demo, init_agentcore_code_interpreter_vars
+)
+
+# Import Agentcore browser tool functions
+from agentcore_browser_tool import (
+    start_agentcore_browser, run_agentcore_browser_task, stop_agentcore_browser,
+    init_agentcore_vars, agentcore_session_manager
 )
 
 # Import AgentCore memory API
@@ -46,6 +46,9 @@ from agentcore_memory_api import memory_api
 
 # Import AgentCore gateway API
 from agentcore_gateway_api import gateway_api, periodic_cleanup_task
+
+# Import AgentCore runtime API
+from agentcore_runtime_api import router as runtime_router, init_runtime_vars
 
 # Configure logging
 class WebSocketLogHandler(logging.Handler):
@@ -103,6 +106,9 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AgentCore on AWS Demo UI")
 
+# Include routers
+app.include_router(runtime_router)
+
 # Startup event to run background cleanup task
 @app.on_event("startup")
 async def startup_event():
@@ -115,6 +121,14 @@ async def startup_event():
 # Mount static files directory
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Mount interactive_tools static files for DCV viewer
+interactive_static_path = os.path.join(os.path.dirname(__file__), "interactive_tools", "static")
+if os.path.exists(interactive_static_path):
+    app.mount("/dcv-static", StaticFiles(directory=interactive_static_path), name="dcv-static")
+    logger.info(f"Mounted DCV static files from: {interactive_static_path}")
+else:
+    logger.error(f"DCV static files directory not found: {interactive_static_path}")
 
 # Set up Jinja2 templates
 templates = Jinja2Templates(directory="templates")
@@ -145,24 +159,32 @@ class ConnectionManager:
     
     def associate_session(self, websocket: WebSocket, session_id: str):
         """Associate an existing WebSocket connection with a session"""
+        print(f"[ConnectionManager.associate_session] Associating WebSocket {id(websocket)} with session: {session_id}", file=sys.stderr)
         if session_id not in self.session_connections:
             self.session_connections[session_id] = set()
         self.session_connections[session_id].add(websocket)
         self.connection_sessions[websocket] = session_id
+        print(f"[ConnectionManager.associate_session] WebSocket {id(websocket)} successfully associated. Total connections in session: {len(self.session_connections[session_id])}", file=sys.stderr)
     
     def disconnect(self, websocket: WebSocket):
+        # Get session_id before removing
+        session_id = self.connection_sessions.get(websocket)
+
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-        
+
         # Remove from session connections
         if websocket in self.connection_sessions:
             session_id = self.connection_sessions[websocket]
+            print(f"[ConnectionManager.disconnect] Disconnecting WebSocket for session: {session_id}", file=sys.stderr)
             if session_id in self.session_connections:
                 self.session_connections[session_id].discard(websocket)
                 # Clean up empty session connection sets
                 if not self.session_connections[session_id]:
+                    print(f"[ConnectionManager.disconnect] Removing empty session: {session_id}", file=sys.stderr)
                     del self.session_connections[session_id]
             del self.connection_sessions[websocket]
+            print(f"[ConnectionManager.disconnect] Remaining sessions: {list(self.session_connections.keys())}", file=sys.stderr)
     
     async def send_message(self, message: str):
         for connection in self.active_connections:
@@ -189,32 +211,40 @@ class ConnectionManager:
     
     async def send_to_session(self, session_id: str, data: Dict):
         """Send message only to connections in a specific session"""
+        print(f"[send_to_session] Called for session {session_id}, message type: {data.get('type')}", file=sys.stderr)
+        print(f"[send_to_session] Current session_connections keys: {list(self.session_connections.keys())}", file=sys.stderr)
+        print(f"[send_to_session] Total active_connections: {len(self.active_connections)}", file=sys.stderr)
+        print(f"[send_to_session] Total connection_sessions: {len(self.connection_sessions)}", file=sys.stderr)
+
         if session_id not in self.session_connections:
             # No connections for this session, queue the message
-            print(f"No connections found for session {session_id}. Available sessions: {list(self.session_connections.keys())}", file=sys.stderr)
+            print(f"[send_to_session] No connections found for session {session_id}. Available sessions: {list(self.session_connections.keys())}", file=sys.stderr)
+            print(f"[send_to_session] Message type: {data.get('type')}, queuing for later delivery", file=sys.stderr)
             if not hasattr(self, 'session_message_queues'):
                 self.session_message_queues = {}
             if session_id not in self.session_message_queues:
                 self.session_message_queues[session_id] = []
-            
+
             self.session_message_queues[session_id].append(data)
             # Keep queue size reasonable
             if len(self.session_message_queues[session_id]) > 1000:
                 self.session_message_queues[session_id] = self.session_message_queues[session_id][-1000:]
+            print(f"[send_to_session] Queued message for session {session_id}. Queue size: {len(self.session_message_queues[session_id])}", file=sys.stderr)
             return
-        
+
         # Send to all connections in this session
         connections_to_remove = []
         connection_count = len(self.session_connections[session_id])
-        print(f"Sending message to session {session_id} with {connection_count} connections", file=sys.stderr)
-        
+        print(f"[send_to_session] Sending message type '{data.get('type')}' to session {session_id} with {connection_count} connections", file=sys.stderr)
+
         for connection in self.session_connections[session_id]:
             try:
                 await connection.send_json(data)
+                print(f"[send_to_session] Successfully sent message to connection in session {session_id}", file=sys.stderr)
             except Exception as e:
-                print(f"Error sending JSON to session {session_id}: {e}", file=sys.stderr)
+                print(f"[send_to_session] Error sending JSON to session {session_id}: {e}", file=sys.stderr)
                 connections_to_remove.append(connection)
-        
+
         # Clean up failed connections
         for connection in connections_to_remove:
             self.disconnect(connection)
@@ -404,11 +434,7 @@ async def get_index(request: Request, user: dict = Depends(get_current_user)):
     return templates.TemplateResponse("index.html", {"request": request, "user": user, "active_page": "home"})
 
 
-@app.get("/browser-use-agentcore", response_class=HTMLResponse)
-async def get_browser_use_agentcore(request: Request, user: dict = Depends(get_current_user)):
-    if not user:
-        return RedirectResponse(url="/login", status_code=303)
-    return templates.TemplateResponse("browser-use-agentcore.html", {"request": request, "user": user, "active_page": "browser-use"})
+
 
 # Removed - Computer Use feature
 # @app.get("/computer-use", response_class=HTMLResponse)
@@ -449,6 +475,18 @@ async def get_agentcore_gateway(request: Request, user: dict = Depends(get_curre
     if not user:
         return RedirectResponse(url="/login", status_code=303)
     return templates.TemplateResponse("agentcore-gateway.html", {"request": request, "user": user, "active_page": "agentcore-gateway"})
+
+@app.get("/agentcore-tool", response_class=HTMLResponse)
+async def get_agentcore_tool(request: Request, user: dict = Depends(get_current_user)):
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse("agentcore-tool.html", {"request": request, "user": user, "active_page": "agentcore-tool"})
+
+@app.get("/browser-tool", response_class=HTMLResponse)
+async def get_browser_tool(request: Request, user: dict = Depends(get_current_user)):
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse("browser-tool.html", {"request": request, "user": user, "active_page": "browser-tool"})
 
 # Removed - Old EC2 Code Interpreter
 # @app.get("/code-interpreter-ec2", response_class=HTMLResponse)
@@ -524,44 +562,16 @@ async def get_agentcore_gateway(request: Request, user: dict = Depends(get_curre
 #         logger.error(f"Error in kill_computer_desktop_endpoint: {e}", exc_info=True)
 #         return {"status": "error", "message": str(e)}
 
-# Agentcore BrowserTool API endpoints
-@app.post("/start-agentcore-browser")
-async def start_agentcore_browser_endpoint(session_id: str = Form(None), region: str = Form("us-west-2")):
-    """Start Agentcore browser session"""
-    try:
-        return await start_agentcore_browser(session_id=session_id, region=region)
-    except Exception as e:
-        logger.error(f"Error in start_agentcore_browser_endpoint: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
 
-@app.post("/run-agentcore-browser-task")
-async def run_agentcore_browser_task_endpoint(prompt: str = Form(...), session_id: str = Form(...), background_tasks: BackgroundTasks = BackgroundTasks()):
-    """Run Agentcore browser automation task"""
-    try:
-        # Run task in background
-        background_tasks.add_task(run_agentcore_browser_task, prompt, session_id)
-        return {"status": "success", "message": "Agentcore browser task started"}
-    except Exception as e:
-        logger.error(f"Error in run_agentcore_browser_task_endpoint: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
-
-@app.post("/stop-agentcore-browser")
-async def stop_agentcore_browser_endpoint(session_id: str = Form(...)):
-    """Stop Agentcore browser session"""
-    try:
-        return await stop_agentcore_browser(session_id=session_id)
-    except Exception as e:
-        logger.error(f"Error in stop_agentcore_browser_endpoint: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
 
 @app.get("/api/sessions/status")
 async def get_sessions_status():
-    """Get status of all active sessions (computer-use and browser-use)"""
+    """Get status of all active sessions"""
     try:
         # Computer-use sessions - DISABLED (module missing)
         computer_sessions = []
 
-        # Browser-use sessions - REMOVED (E2B dependency removed)
+        # Browser-use sessions - REMOVED
         browser_sessions = []
 
         # Agentcore browser sessions
@@ -581,14 +591,14 @@ async def get_sessions_status():
             agentcore_sessions.append(session_info)
 
         all_sessions = computer_sessions + browser_sessions + agentcore_sessions
-        
+
         # Also include WebSocket connection info
         websocket_info = {
             "total_connections": len(manager.active_connections),
             "session_connections": {k: len(v) for k, v in manager.session_connections.items()},
             "connection_sessions": len(manager.connection_sessions)
         }
-        
+
         return {
             "status": "success",
             "total_sessions": len(all_sessions),
@@ -601,6 +611,16 @@ async def get_sessions_status():
     except Exception as e:
         logger.error(f"Error getting sessions status: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}
+
+@app.get("/api/debug/websocket-status")
+async def debug_websocket_status():
+    """Debug endpoint to check WebSocket connection status"""
+    return {
+        "active_connections": len(manager.active_connections),
+        "session_connections": {k: len(v) for k, v in manager.session_connections.items()},
+        "connection_sessions_count": len(manager.connection_sessions),
+        "message_queues": {k: len(v) for k, v in getattr(manager, 'session_message_queues', {}).items()}
+    }
 
 # AWS Bedrock AgentCore Code Interpreter API endpoints
 class CodeRequest(BaseModel):
@@ -672,6 +692,36 @@ async def execute_shell_command_demo_endpoint():
             "success": False,
             "error": result["error"]
         }, status_code=500)
+
+# Agentcore BrowserTool API endpoints
+@app.post("/start-agentcore-browser")
+async def start_agentcore_browser_endpoint(session_id: str = Form(None), region: str = Form("us-east-2")):
+    """Start Agentcore browser session"""
+    try:
+        return await start_agentcore_browser(session_id=session_id, region=region)
+    except Exception as e:
+        logger.error(f"Error in start_agentcore_browser_endpoint: {e}", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+@app.post("/run-agentcore-browser-task")
+async def run_agentcore_browser_task_endpoint(prompt: str = Form(...), session_id: str = Form(...), background_tasks: BackgroundTasks = BackgroundTasks()):
+    """Run Agentcore browser automation task"""
+    try:
+        # Run task in background
+        background_tasks.add_task(run_agentcore_browser_task, prompt, session_id)
+        return {"status": "success", "message": "Agentcore browser task started"}
+    except Exception as e:
+        logger.error(f"Error in run_agentcore_browser_task_endpoint: {e}", exc_info=True)
+        return {"status": "error", "message": str(e)}
+
+@app.post("/stop-agentcore-browser")
+async def stop_agentcore_browser_endpoint(session_id: str = Form(...)):
+    """Stop Agentcore browser session"""
+    try:
+        return await stop_agentcore_browser(session_id=session_id)
+    except Exception as e:
+        logger.error(f"Error in stop_agentcore_browser_endpoint: {e}", exc_info=True)
+        return {"status": "error", "message": str(e)}
 
 # AgentCore Memory API endpoints
 class MemoryInitRequest(BaseModel):
@@ -1153,6 +1203,116 @@ async def gateway_session_cleanup(request: Request, user: dict = Depends(get_cur
     result = gateway_api.cleanup_session_resources(session_id)
     return JSONResponse(result)
 
+# WebSocket endpoint for real-time communication
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time log streaming and session communication"""
+
+    # Check authentication if login is enabled
+    login_enabled = os.getenv("LOGIN_ENABLE", "true").lower() == "true"
+    if login_enabled:
+        # Extract session token from cookies
+        session_token = websocket.cookies.get("session_token")
+        logger.info(f"WebSocket connection attempt - session_token: {session_token[:16] if session_token else None}..., available sessions: {len(sessions)}")
+        if not session_token or session_token not in sessions:
+            logger.warning(f"WebSocket authentication failed - session expired or invalid. Please refresh and log in again.")
+            # Accept the connection first, then close it with proper code
+            await websocket.accept()
+            await websocket.close(code=1008, reason="Session expired. Please refresh and log in again.")
+            return
+
+    await manager.connect(websocket)
+
+    # Send any buffered logs when a client connects
+    if hasattr(ws_handler, 'buffer'):
+        for log_entry in ws_handler.buffer:
+            try:
+                await websocket.send_json(log_entry)
+            except Exception:
+                pass
+
+    # Send any buffered stdout/stderr logs
+    if hasattr(stdout_capture, 'buffer'):
+        for log_entry in stdout_capture.buffer:
+            try:
+                await websocket.send_json(log_entry)
+            except Exception:
+                pass
+
+    if hasattr(stderr_capture, 'buffer'):
+        for log_entry in stderr_capture.buffer:
+            try:
+                await websocket.send_json(log_entry)
+            except Exception:
+                pass
+
+    # Send any messages in the manager's queue
+    if manager.message_queue:
+        for message in manager.message_queue:
+            try:
+                await websocket.send_json(message)
+            except Exception:
+                pass
+        # Clear the queue after sending
+        manager.message_queue = []
+
+    try:
+        while True:
+            # Wait for messages from the client
+            data = await websocket.receive_text()
+            logger.debug(f"WebSocket received message: {data[:100]}")  # Log first 100 chars
+            try:
+                message = json.loads(data)
+                logger.debug(f"WebSocket parsed message: {message}")
+
+                # Handle session identification
+                if message.get('action') == 'identify_session':
+                    session_id = message.get('session_id')
+                    logger.info(f"[WebSocket] Received identify_session request for: {session_id}")
+                    logger.info(f"[WebSocket] Current active_connections count: {len(manager.active_connections)}")
+                    logger.info(f"[WebSocket] Current session_connections: {list(manager.session_connections.keys())}")
+                    if session_id:
+                        manager.associate_session(websocket, session_id)
+                        logger.info(f"[WebSocket] WebSocket associated with session: {session_id}")
+                        logger.info(f"[WebSocket] Active sessions after association: {list(manager.session_connections.keys())}")
+                        logger.info(f"[WebSocket] Connections in this session: {len(manager.session_connections.get(session_id, set()))}")
+
+                        # Send any queued messages for this session
+                        if hasattr(manager, 'session_message_queues') and session_id in manager.session_message_queues:
+                            queued_count = len(manager.session_message_queues[session_id])
+                            logger.info(f"Sending {queued_count} queued messages to session {session_id}")
+                            for queued_message in manager.session_message_queues[session_id]:
+                                try:
+                                    await websocket.send_json(queued_message)
+                                    logger.info(f"Sent queued message type: {queued_message.get('type')}")
+                                except Exception as e:
+                                    logger.error(f"Error sending queued message: {e}")
+                            # Clear the queue after sending
+                            del manager.session_message_queues[session_id]
+                            logger.info(f"Cleared message queue for session {session_id}")
+
+                # Handle clear logs action
+                elif message.get('action') == 'clear_logs':
+                    if hasattr(ws_handler, 'clear_buffer'):
+                        ws_handler.clear_buffer()
+                    if hasattr(stdout_capture, 'buffer'):
+                        stdout_capture.buffer = []
+                    if hasattr(stderr_capture, 'buffer'):
+                        stderr_capture.buffer = []
+                    logger.info("Logs cleared by client request")
+
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON received from WebSocket: {data}")
+
+    except WebSocketDisconnect as e:
+        session_id = manager.get_session_id(websocket)
+        logger.info(f"WebSocket disconnected for session: {session_id}, code: {e.code if hasattr(e, 'code') else 'unknown'}")
+        manager.disconnect(websocket)
+    except Exception as e:
+        session_id = manager.get_session_id(websocket)
+        logger.error(f"WebSocket error for session: {session_id}, error: {e}")
+        manager.disconnect(websocket)
+
 # Initialize shared variables
 if __name__ == "__main__":
 
@@ -1165,9 +1325,14 @@ if __name__ == "__main__":
     # Initialize shared variables in agentcore_code_interpreter.py
     init_agentcore_code_interpreter_vars(logger)
 
+    # Initialize shared variables in agentcore_runtime_api.py
+    init_runtime_vars(manager)
+
     # Log startup message
     logger.info("Starting AgentCore on AWS Demo UI")
     logger.info("All logs will be streamed to the WebUI")
-    
+
     # Start the FastAPI application
-    uvicorn.run("app:app", host="0.0.0.0", port=8090, log_level="info")
+    # IMPORTANT: Use app object directly (not "app:app" string) to avoid module reload
+    # which would create new ConnectionManager instances
+    uvicorn.run(app, host="0.0.0.0", port=8090, log_level="info")

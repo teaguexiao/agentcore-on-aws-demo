@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Tool - AgentCore on AWS Demo UI</title>
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+
+    <!-- Immediately hide header when in iframe to prevent FOUC -->
+    <script>
+        if (window.self !== window.top) {
+            document.write('<style>.row.header, .nav.nav-tabs, .nav-tabs { display: none !important; } .main-content { margin-top: 0 !important; padding-top: 20px !important; }</style>');
+        }
+    </script>
+
+    <style>
+        .stream-panel, .control-panel {
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            border-radius: 8px 8px 0 0 !important;
+        }
+        
+        .card-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        
+        #agentcore-log-container {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            line-height: 1.5;
+        }
+        
+        .log-time {
+            color: #858585;
+            margin-right: 8px;
+        }
+        
+        .log-message {
+            color: #d4d4d4;
+        }
+        
+        .log-info .log-message {
+            color: #4fc3f7;
+        }
+        
+        .log-success .log-message {
+            color: #81c784;
+        }
+        
+        .log-error .log-message {
+            color: #e57373;
+        }
+        
+        .log-warning .log-message {
+            color: #ffb74d;
+        }
+        
+        .log-stdout .log-message {
+            color: #d4d4d4;
+        }
+        
+        .log-stderr .log-message {
+            color: #ff8a80;
+        }
+        
+        .agentcore-example-task {
+            margin-bottom: 5px;
+        }
+        
+        .agentcore-example-task.active {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+        
+        #agentcore-browser-container {
+            position: relative;
+            background-color: #f8f9fa;
+        }
+        
+        #agentcore-browser-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            background-color: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+        }
+        
+        #agentcore-browser-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        {% include 'partials/header.html' %}
+
+        <div class="row main-content">
+            <div class="col-12 mt-4">
+                <h2 class="text-center mb-4">AgentCore Browser Tool</h2>
+                <p class="text-center text-muted mb-4">AI-powered browser automation using AWS Bedrock AgentCore</p>
+                
+                <div class="row">
+                    <!-- Left panel: Browser stream -->
+                    <div class="col-md-7 stream-panel">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h3>Browser Stream</h3>
+                                <div class="d-flex align-items-center">
+                                    <button id="agentcore-fullscreen-btn" class="btn btn-outline-light btn-sm me-2" title="Open browser in fullscreen mode" data-bs-toggle="tooltip" data-bs-placement="bottom" style="display: none;">
+                                        <i class="fas fa-expand"></i>
+                                    </button>
+                                    <div id="agentcore-controls" class="d-flex align-items-center" style="display: none;">
+                                        <span id="agentcore-timer" class="badge bg-secondary me-2 py-2 px-3 fs-6">00:00</span>
+                                        <span id="agentcore-session-id" class="badge bg-info me-2"></span>
+                                        <button id="stop-agentcore-browser" class="btn btn-danger py-1 px-2 fs-6">Stop</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="agentcore-browser-container" style="width: 100%; height: 500px;">
+                                    <div id="agentcore-browser-placeholder">
+                                        <p style="color: #6c757d; margin: 0;">No active browser session. Start a new session to begin.</p>
+                                    </div>
+                                    <iframe id="agentcore-browser-frame" style="display: none;"></iframe>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right panel: Controls and logs -->
+                    <div class="col-md-5 control-panel">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Controls</h3>
+                            </div>
+                            <div class="card-body">
+                                <form id="agentcore-task-form">
+                                    <div class="mb-3">
+                                        <label for="agentcore-task-input" class="form-label">Browser Task Prompt:</label>
+                                        <textarea id="agentcore-task-input" class="form-control" rows="4" placeholder="Enter your browser automation task here..."></textarea>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Example Browser Tasks:</label>
+                                        <div class="d-flex flex-wrap gap-2 mb-2">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary agentcore-example-task" data-prompt="Navigate to Google and search for 'latest AI developments'">Google Search</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary agentcore-example-task" data-prompt="Go to Amazon and search for 'wireless headphones' and show me the top 3 results">Amazon Search</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary agentcore-example-task" data-prompt="Visit Wikipedia and find information about machine learning">Wikipedia Research</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary agentcore-example-task" data-prompt="Navigate to GitHub and search for popular Python repositories">GitHub Browse</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex flex-wrap gap-2 mb-4">
+                                        <button type="button" id="run-agentcore-task" class="btn btn-sm btn-info">Run Browser Task</button>
+                                    </div>
+
+                                    <div class="logs-section mt-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h4>Browser Logs</h4>
+                                            <button id="clear-agentcore-logs" class="btn btn-sm btn-outline-secondary">Clear</button>
+                                        </div>
+                                        <div id="agentcore-log-container">
+                                            <div id="agentcore-logs"></div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/script.js"></script>
+    <script src="/static/js/agentcore-browser.js"></script>
+
+    <!-- Agentcore Browser Fullscreen Modal -->
+    <div class="modal fade" id="agentcoreFullscreenModal" tabindex="-1" aria-labelledby="agentcoreFullscreenModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="agentcoreFullscreenModalLabel">
+                        <i class="fas fa-globe me-2"></i>AgentCore Browser - Fullscreen View
+                    </h5>
+                    <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="fas fa-times me-1"></i>Exit Fullscreen
+                    </button>
+                </div>
+                <div class="modal-body p-0">
+                    <div id="agentcore-fullscreen-container" style="width: 100%; height: calc(100vh - 60px);">
+                        <!-- Browser iframe will be moved here when in fullscreen mode -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug logging for iframe detection (CSS in head handles actual hiding) -->
+    <script>
+        if (window.self !== window.top) {
+            console.log('Page loaded in iframe - header and navigation hidden via CSS');
+        }
+    </script>
+</body>
+</html>
+
