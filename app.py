@@ -44,6 +44,9 @@ from agentcore_browser_tool import (
 # Import AgentCore memory API
 from agentcore_memory_api import memory_api
 
+# Import AgentCore gateway API
+from agentcore_gateway_api import gateway_api, periodic_cleanup_task
+
 # Import AgentCore runtime API
 from agentcore_runtime_api import router as runtime_router, init_runtime_vars
 
@@ -105,6 +108,15 @@ app = FastAPI(title="AgentCore on AWS Demo UI")
 
 # Include routers
 app.include_router(runtime_router)
+
+# Startup event to run background cleanup task
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks on application startup"""
+    import asyncio
+    # Start the periodic cleanup task for Gateway resources
+    asyncio.create_task(periodic_cleanup_task(interval_minutes=5))
+    logger.info("[Startup] Gateway resource cleanup task started (runs every 5 minutes)")
 
 # Mount static files directory
 os.makedirs("static", exist_ok=True)
@@ -378,11 +390,16 @@ async def post_login(request: Request, response: Response, username: str = Form(
     if username == expected_username and password == expected_password:
         # Create session
         session_token = secrets.token_hex(16)
-        sessions[session_token] = {"username": username, "aws_login": aws_login, "customer_name": customer_name}
-        
+        session_id = secrets.token_hex(16)  # Unique session ID for resource tracking
+        sessions[session_token] = {"username": username, "aws_login": aws_login, "customer_name": customer_name, "session_id": session_id}
+
+        # Register Gateway session for resource tracking
+        gateway_api.register_session(session_id, username)
+
         # Set cookie and redirect
         response = RedirectResponse(url="/", status_code=303)
         response.set_cookie(key="session_token", value=session_token, httponly=True)
+        response.set_cookie(key="session_id", value=session_id, httponly=True)
         return response
     else:
         return templates.TemplateResponse(
@@ -392,9 +409,21 @@ async def post_login(request: Request, response: Response, username: str = Form(
 
 # Logout route
 @app.get("/logout")
-async def logout(response: Response):
+async def logout(request: Request, response: Response):
+    # Get session ID from cookie before deleting
+    session_id = request.cookies.get("session_id")
+
+    # Clean up Gateway resources for this session
+    if session_id:
+        try:
+            cleanup_result = gateway_api.cleanup_session_resources(session_id)
+            logger.info(f"Gateway cleanup on logout: {cleanup_result.get('message', 'completed')}")
+        except Exception as e:
+            logger.warning(f"Gateway cleanup failed on logout: {str(e)}")
+
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie(key="session_token")
+    response.delete_cookie(key="session_id")
     return response
 
 # Main route
@@ -925,6 +954,253 @@ async def list_ltm_records(request: ListRecordsRequest):
 async def delete_memory(request: DeleteMemoryRequest):
     """Delete Memory resource"""
     result = memory_api.delete_memory(request.memory_id)
+    return JSONResponse(result)
+
+# AgentCore Gateway API endpoints
+class DeleteGatewayRequest(BaseModel):
+    gateway_id: str
+
+@app.get("/api/gateway/list")
+async def list_gateways(request: Request, user: dict = Depends(get_current_user)):
+    """List all Gateway resources"""
+    if not user:
+        return JSONResponse({"success": False, "message": "未登录"})
+
+    username = user.get("username", "default_user")
+    # 在模拟模式下不过滤 username，显示所有会话创建的 Gateway
+    if gateway_api.get_simulation_mode():
+        result = gateway_api.list_gateways(username=None)
+    else:
+        result = gateway_api.list_gateways(username=username)
+    return JSONResponse(result)
+
+@app.get("/api/gateway/simulation-mode")
+async def get_simulation_mode(user: dict = Depends(get_current_user)):
+    """Get current simulation mode status"""
+    return JSONResponse({
+        "success": True,
+        "simulation_mode": gateway_api.get_simulation_mode()
+    })
+
+@app.post("/api/gateway/simulation-mode")
+async def set_simulation_mode(request: Request, user: dict = Depends(get_current_user)):
+    """Set simulation mode on/off"""
+    body = await request.json()
+    enabled = body.get("enabled", True)
+    result = gateway_api.set_simulation_mode(enabled)
+    return JSONResponse(result)
+
+@app.post("/api/gateway/validate-credentials")
+async def validate_aws_credentials(request: Request, user: dict = Depends(get_current_user)):
+    """Validate user-provided AWS credentials"""
+    if not user:
+        return JSONResponse({"success": False, "message": "未登录"})
+
+    try:
+        body = await request.json()
+        access_key = body.get("access_key")
+        secret_key = body.get("secret_key")
+        region = body.get("region", "us-west-2")
+
+        if not access_key or not secret_key:
+            return JSONResponse({"success": False, "message": "请提供 Access Key 和 Secret Key"})
+
+        # Validate credentials using STS GetCallerIdentity
+        import boto3
+        sts_client = boto3.client(
+            'sts',
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=region
+        )
+        identity = sts_client.get_caller_identity()
+
+        return JSONResponse({
+            "success": True,
+            "account_id": identity.get("Account"),
+            "arn": identity.get("Arn"),
+            "user_id": identity.get("UserId")
+        })
+
+    except Exception as e:
+        error_msg = str(e)
+        if "InvalidClientTokenId" in error_msg or "SignatureDoesNotMatch" in error_msg:
+            return JSONResponse({"success": False, "message": "凭证无效：Access Key 或 Secret Key 错误"})
+        elif "ExpiredToken" in error_msg:
+            return JSONResponse({"success": False, "message": "凭证已过期"})
+        else:
+            return JSONResponse({"success": False, "message": f"验证失败: {error_msg}"})
+
+@app.post("/api/gateway/delete")
+async def delete_gateway(request: DeleteGatewayRequest, user: dict = Depends(get_current_user)):
+    """Delete Gateway resource"""
+    if not user:
+        return JSONResponse({"success": False, "message": "未登录"})
+
+    result = gateway_api.delete_gateway(request.gateway_id)
+    return JSONResponse(result)
+
+@app.post("/api/gateway/demo/lambda-step/{step}")
+async def gateway_demo_lambda_step(step: int, request: Request, user: dict = Depends(get_current_user)):
+    """Execute a single step of the Lambda to MCP demo"""
+    if not user:
+        return JSONResponse({"success": False, "message": "未登录"})
+
+    session_id = request.cookies.get("session_id")
+    username = user.get("username", "default_user")
+
+    # If no session_id (e.g., LOGIN_ENABLE=false), generate one and set cookie
+    response_with_cookie = False
+    if not session_id:
+        session_id = secrets.token_hex(16)
+        response_with_cookie = True
+        logger.info(f"[Gateway Step {step}] Generated new session_id={session_id}")
+
+    logger.info(f"[Gateway Step {step}] session_id={session_id}, username={username}")
+
+    # Parse request body for additional parameters
+    from agentcore_gateway_api import session_manager
+    aws_credentials = None
+
+    try:
+        body = await request.json()
+
+        # Extract AWS credentials if provided (for real mode)
+        if "aws_credentials" in body:
+            aws_credentials = body.get("aws_credentials")
+            logger.info(f"[Gateway Step {step}] User provided AWS credentials")
+
+        # For step 5, extract tool parameters
+        if step == 5:
+            tool_name = body.get("tool_name", "get_order_tool")
+            order_id = body.get("order_id", "ORD-12345")
+
+            # Store in session for step 5 to use
+            if session_id in session_manager.sessions:
+                session_manager.sessions[session_id].setdefault("step_data", {})
+                session_manager.sessions[session_id]["step_data"]["call_tool_name"] = tool_name
+                session_manager.sessions[session_id]["step_data"]["call_order_id"] = order_id
+    except Exception:
+        pass  # Use default values if parsing fails
+
+    result = gateway_api.run_lambda_step(step, session_id, username, aws_credentials=aws_credentials)
+
+    # Debug: log session state after step
+    if session_id in session_manager.sessions:
+        step_data = session_manager.sessions[session_id].get("step_data", {})
+        logger.info(f"[Gateway Step {step}] After execution, step_data keys: {list(step_data.keys())}")
+
+    # Return response with cookie if needed
+    if response_with_cookie:
+        response = JSONResponse(result)
+        response.set_cookie(key="session_id", value=session_id, httponly=True)
+        return response
+
+    return JSONResponse(result)
+
+
+@app.get("/api/gateway/demo/lambda-to-mcp")
+async def gateway_demo_lambda_to_mcp(request: Request, user: dict = Depends(get_current_user)):
+    """Demo 1: Transform Lambda into MCP Tools (streaming)"""
+    if not user:
+        async def error_generator():
+            yield 'event: result\ndata: {"success": false, "message": "未登录"}\n\n'
+        return StreamingResponse(error_generator(), media_type="text/event-stream")
+
+    username = user.get("username", "default_user")
+    session_id = request.cookies.get("session_id")
+
+    async def event_generator():
+        for event in gateway_api.demo_lambda_to_mcp_stream(username=username, session_id=session_id):
+            yield event
+            await asyncio.sleep(0.05)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@app.get("/api/gateway/demo/openapi-to-mcp")
+async def gateway_demo_openapi_to_mcp(request: Request, user: dict = Depends(get_current_user)):
+    """Demo 2: Transform OpenAPI into MCP Tools (streaming)"""
+    if not user:
+        async def error_generator():
+            yield 'event: result\ndata: {"success": false, "message": "未登录"}\n\n'
+        return StreamingResponse(error_generator(), media_type="text/event-stream")
+
+    username = user.get("username", "default_user")
+    session_id = request.cookies.get("session_id")
+
+    async def event_generator():
+        for event in gateway_api.demo_openapi_to_mcp_stream(username=username, session_id=session_id):
+            yield event
+            await asyncio.sleep(0.05)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@app.get("/api/gateway/demo/search")
+async def gateway_demo_search(request: Request, user: dict = Depends(get_current_user)):
+    """Demo 3: Gateway Semantic Search for Tools (streaming)"""
+    if not user:
+        async def error_generator():
+            yield 'event: result\ndata: {"success": false, "message": "未登录"}\n\n'
+        return StreamingResponse(error_generator(), media_type="text/event-stream")
+
+    username = user.get("username", "default_user")
+    session_id = request.cookies.get("session_id")
+
+    async def event_generator():
+        for event in gateway_api.demo_gateway_search_stream(username=username, session_id=session_id):
+            yield event
+            await asyncio.sleep(0.05)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@app.get("/api/gateway/session/info")
+async def gateway_session_info(request: Request, user: dict = Depends(get_current_user)):
+    """Get current session's Gateway resource info"""
+    if not user:
+        return JSONResponse({"success": False, "message": "未登录"})
+
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        return JSONResponse({"success": False, "message": "No session ID"})
+
+    result = gateway_api.get_session_info(session_id)
+    return JSONResponse(result)
+
+@app.post("/api/gateway/session/cleanup")
+async def gateway_session_cleanup(request: Request, user: dict = Depends(get_current_user)):
+    """Manually clean up current session's Gateway resources"""
+    if not user:
+        return JSONResponse({"success": False, "message": "未登录"})
+
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        return JSONResponse({"success": False, "message": "No session ID"})
+
+    result = gateway_api.cleanup_session_resources(session_id)
     return JSONResponse(result)
 
 # WebSocket endpoint for real-time communication
