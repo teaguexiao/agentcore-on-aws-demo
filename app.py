@@ -45,7 +45,7 @@ from agentcore_browser_tool import (
 from agentcore_memory_api import memory_api
 
 # Import AgentCore gateway API
-from agentcore_gateway_api import gateway_api, periodic_cleanup_task
+from agentcore_gateway_api import gateway_api
 
 # Import AgentCore runtime API
 from agentcore_runtime_api import router as runtime_router, init_runtime_vars
@@ -109,14 +109,6 @@ app = FastAPI(title="AgentCore on AWS Demo UI")
 # Include routers
 app.include_router(runtime_router)
 
-# Startup event to run background cleanup task
-@app.on_event("startup")
-async def startup_event():
-    """Start background tasks on application startup"""
-    import asyncio
-    # Start the periodic cleanup task for Gateway resources
-    asyncio.create_task(periodic_cleanup_task(interval_minutes=5))
-    logger.info("[Startup] Gateway resource cleanup task started (runs every 5 minutes)")
 
 # Mount static files directory
 os.makedirs("static", exist_ok=True)
@@ -410,17 +402,6 @@ async def post_login(request: Request, response: Response, username: str = Form(
 # Logout route
 @app.get("/logout")
 async def logout(request: Request, response: Response):
-    # Get session ID from cookie before deleting
-    session_id = request.cookies.get("session_id")
-
-    # Clean up Gateway resources for this session
-    if session_id:
-        try:
-            cleanup_result = gateway_api.cleanup_session_resources(session_id)
-            logger.info(f"Gateway cleanup on logout: {cleanup_result.get('message', 'completed')}")
-        except Exception as e:
-            logger.warning(f"Gateway cleanup failed on logout: {str(e)}")
-
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie(key="session_token")
     response.delete_cookie(key="session_id")

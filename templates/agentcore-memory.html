@@ -62,6 +62,30 @@
         .loading.active {
             display: inline-block;
         }
+
+        /* Fix card-header with Bootstrap color classes */
+        .card-header.bg-primary {
+            background: linear-gradient(135deg, #0b5ed7, #0d6efd) !important;
+        }
+        .card-header.bg-success {
+            background: linear-gradient(135deg, #1a6b3d, #198754) !important;
+        }
+        .card-header.bg-info {
+            background: linear-gradient(135deg, #0aa2c0, #0dcaf0) !important;
+        }
+        .card-header.bg-primary.text-white,
+        .card-header.bg-success.text-white,
+        .card-header.bg-info.text-white {
+            color: #ffffff !important;
+        }
+        .card-header.bg-primary.text-white i,
+        .card-header.bg-primary.text-white strong,
+        .card-header.bg-success.text-white i,
+        .card-header.bg-success.text-white strong,
+        .card-header.bg-info.text-white i,
+        .card-header.bg-info.text-white strong {
+            color: #ffffff !important;
+        }
     </style>
 </head>
 <body>
