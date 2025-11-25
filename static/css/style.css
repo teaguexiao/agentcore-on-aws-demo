@@ -142,9 +142,12 @@ body {
     transform: translateY(-2px);
 }
 
-.card-header {
+.card-header:not(.bg-primary):not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
     background: linear-gradient(135deg, #f8f9fa, #e9ecef);
     border-bottom: 1px solid #dee2e6;
+}
+
+.card-header {
     padding: 16px 24px;
     border-radius: 12px 12px 0 0;
 }
@@ -174,9 +177,12 @@ body {
     flex-direction: column;
 }
 
-.card-header {
+.card-header:not(.bg-primary):not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info) {
     background-color: #f8f9fa;
     border-bottom: 1px solid #dee2e6;
+}
+
+.card-header {
     padding: 12px 20px;
 }
 
@@ -460,6 +466,54 @@ body {
     background-color: #0d6efd;
     color: white;
     border-color: #0d6efd;
+}
+
+/* Enhanced card-header with bg-success for better text visibility */
+.card-header.bg-success {
+    background: linear-gradient(135deg, #1a6b3d, #198754) !important;
+    border-bottom: none;
+}
+
+.card-header.bg-success.text-white {
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.card-header.bg-success.text-white i,
+.card-header.bg-success.text-white .fas,
+.card-header.bg-success.text-white .far,
+.card-header.bg-success.text-white .fab {
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.card-header.bg-success.text-white strong {
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+/* Enhanced bg-primary style for better contrast */
+.card-header.bg-primary {
+    background: linear-gradient(135deg, #0b5ed7, #0d6efd) !important;
+    border-bottom: none;
+}
+
+.card-header.bg-primary.text-white {
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.card-header.bg-primary.text-white i,
+.card-header.bg-primary.text-white .fas,
+.card-header.bg-primary.text-white .far,
+.card-header.bg-primary.text-white .fab {
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.card-header.bg-primary.text-white strong {
+    color: #ffffff !important;
+    font-weight: 600;
 }
 
 @media (max-width: 767.98px) {
