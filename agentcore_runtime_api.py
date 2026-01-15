@@ -67,25 +67,44 @@ connection_manager = None  # WebSocket 管理器，由 app.py 注入
 
 # ==================== 工作空间管理 ====================
 
-# 工作空间常量
+# Direct Code 工作空间常量
 WORKSPACE_BASE_PATH = "/tmp/agentcore_workspaces"
 SSE_HEARTBEAT_INTERVAL = 15  # 秒
 FILE_TREE_MAX_DEPTH = 1
 FILE_TREE_MAX_FILES = 100
 
+# Container 工作空间常量
+CONTAINER_WORKSPACE_BASE_PATH = "/tmp/agentcore_container_workspaces"
+
 @dataclass
 class WorkspaceInfo:
-    """工作空间信息"""
+    """Direct Code 工作空间信息"""
     workspace_id: str              # 唯一ID，也是目录名
     user_session_id: str           # 关联的用户 session_id (来自 cookie)
     workspace_path: str            # 完整路径: /tmp/agentcore_workspaces/{workspace_id}
     created_at: float = field(default_factory=time.time)
     runtime_id: Optional[str] = None  # 如果有部署的 runtime，记录其 ID
 
-# 用户工作空间映射
+@dataclass
+class ContainerWorkspaceInfo:
+    """Container 工作空间信息"""
+    workspace_id: str              # 唯一ID，前缀 container_ws_
+    user_session_id: str           # 关联的用户 session_id (来自 cookie)
+    workspace_path: str            # 完整路径: /tmp/agentcore_container_workspaces/{workspace_id}
+    created_at: float = field(default_factory=time.time)
+    runtime_id: Optional[str] = None  # 如果有部署的 runtime，记录其 ID
+    runtime_arn: Optional[str] = None  # Runtime ARN
+    ecr_image_uri: Optional[str] = None  # Container 特有：ECR 镜像 URI
+
+# Direct Code 用户工作空间映射
 # key: user_session_id (来自登录 cookie)
 # value: WorkspaceInfo
 user_workspaces: Dict[str, WorkspaceInfo] = {}
+
+# Container 用户工作空间映射
+# key: user_session_id (来自登录 cookie)
+# value: ContainerWorkspaceInfo
+container_workspaces: Dict[str, ContainerWorkspaceInfo] = {}
 
 # 登录验证相关（从 app.py 注入）
 _sessions_dict = None  # 存储 app.py 的 sessions 字典引用
@@ -137,7 +156,8 @@ def init_runtime_vars(cm, sessions_dict=None):
         init_auth(sessions_dict)
     # 确保工作空间基础目录存在
     os.makedirs(WORKSPACE_BASE_PATH, exist_ok=True)
-    logger.info("Runtime API variables initialized")
+    os.makedirs(CONTAINER_WORKSPACE_BASE_PATH, exist_ok=True)
+    logger.info("Runtime API variables initialized (Direct Code + Container)")
 
 # ==================== 数据模型 ====================
 
@@ -664,327 +684,452 @@ async def get_environment_config():
 
 # ==================== Container Deployment 端点 ====================
 
-@router.get("/container/step1-stream")
-async def container_step1_init_project_stream(session_id: str):
-    """Container Step 1: 模拟初始化项目 - SSE 流式输出"""
-    logger.info(f"Session {session_id}: 执行 Container Step 1 - 初始化项目 (SSE)")
+# Container 工作空间管理 API
 
-    async def generate():
-        output_lines = [
-            "Creating project directory: my-custom-agent",
-            "Initializing Python 3.11 project...",
-            "Created pyproject.toml",
-            "Created uv.lock",
-            "Created .venv directory",
-            "",
-            "Adding dependencies:",
-            "  - fastapi",
-            "  - uvicorn[standard]",
-            "  - pydantic",
-            "  - httpx",
-            "  - strands-agents",
-            "",
-            "Installing packages...",
-            "✓ All dependencies installed successfully!",
-            "✓ Project setup completed!"
-        ]
+@router.post("/container/workspace/init")
+async def init_container_workspace(request: Request, user: dict = Depends(require_login)):
+    """初始化 Container 工作空间"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
 
-        for line in output_lines:
-            await asyncio.sleep(0.5)
-            data = json.dumps({"line": line, "done": False})
-            yield f"data: {data}\n\n"
+    logger.info(f"[Container Workspace Init] user_session_id={user_session_id}")
 
-        final_data = json.dumps({
-            "done": True,
-            "message": "项目初始化完成",
-            "output": "\n".join(output_lines)
+    # 检查是否已有工作目录
+    if user_session_id in container_workspaces:
+        existing = container_workspaces[user_session_id]
+        return JSONResponse({
+            "success": False,
+            "message": "已存在 Container 工作目录，请先清理",
+            "existing_workspace_id": existing.workspace_id
         })
-        yield f"data: {final_data}\n\n"
 
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
+    # 生成唯一 ID
+    workspace_id = f"container_ws_{int(time.time())}_{secrets.token_hex(4)}"
+    workspace_path = os.path.join(CONTAINER_WORKSPACE_BASE_PATH, workspace_id)
+
+    # 创建目录
+    try:
+        os.makedirs(workspace_path, exist_ok=True)
+    except OSError as e:
+        logger.error(f"[Container Workspace Init] Failed to create directory: {e}")
+        return JSONResponse({
+            "success": False,
+            "message": f"创建目录失败: {str(e)}"
+        }, status_code=500)
+
+    # 保存信息
+    container_workspaces[user_session_id] = ContainerWorkspaceInfo(
+        workspace_id=workspace_id,
+        user_session_id=user_session_id,
+        workspace_path=workspace_path
     )
 
-@router.get("/container/step2-stream")
-async def container_step2_create_agent_stream(session_id: str):
-    """Container Step 2: 模拟创建 Agent 应用 - SSE 流式输出"""
-    logger.info(f"Session {session_id}: 执行 Container Step 2 - 创建 Agent 应用 (SSE)")
+    logger.info(f"[Container Workspace Init] Created workspace {workspace_id} at {workspace_path}")
 
-    async def generate():
-        output_lines = [
-            "Creating FastAPI application...",
-            "Writing agent.py with endpoints:",
-            "  - POST /invocations (Agent invocation)",
-            "  - GET /ping (Health check)",
-            "",
-            "Configuring Strands Agent...",
-            "Setting up request/response models:",
-            "  - InvocationRequest",
-            "  - InvocationResponse",
-            "",
-            "Adding error handling...",
-            "Configuring uvicorn server...",
-            "",
-            "✓ File created: my-custom-agent/agent.py",
-            "✓ Agent application ready for containerization"
-        ]
+    return JSONResponse({
+        "success": True,
+        "workspace_id": workspace_id,
+        "workspace_path": workspace_path,
+        "message": "Container 工作目录初始化成功"
+    })
 
-        for line in output_lines:
-            await asyncio.sleep(0.5)
-            data = json.dumps({"line": line, "done": False})
-            yield f"data: {data}\n\n"
 
-        final_data = json.dumps({
-            "done": True,
-            "message": "agent.py 创建完成",
-            "file_path": "my-custom-agent/agent.py",
-            "output": "\n".join(output_lines)
+@router.get("/container/workspace/status")
+async def get_container_workspace_status(request: Request, user: dict = Depends(require_login)):
+    """获取 Container 工作空间状态"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = container_workspaces.get(user_session_id)
+
+    if workspace:
+        return JSONResponse({
+            "initialized": True,
+            "workspace_id": workspace.workspace_id,
+            "workspace_path": workspace.workspace_path,
+            "created_at": workspace.created_at,
+            "runtime_id": workspace.runtime_id,
+            "runtime_arn": workspace.runtime_arn,
+            "ecr_image_uri": workspace.ecr_image_uri,
+            "has_runtime": workspace.runtime_id is not None
         })
-        yield f"data: {final_data}\n\n"
-
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
-    )
-
-@router.get("/container/step3-stream")
-async def container_step3_create_dockerfile_stream(session_id: str):
-    """Container Step 3: 模拟创建 Dockerfile - SSE 流式输出"""
-    logger.info(f"Session {session_id}: 执行 Container Step 3 - 创建 Dockerfile (SSE)")
-
-    async def generate():
-        output_lines = [
-            "Creating Dockerfile for ARM64 architecture...",
-            "Base image: ghcr.io/astral-sh/uv:python3.11-bookworm-slim",
-            "Platform: linux/arm64",
-            "",
-            "Configuring workdir: /app",
-            "Adding dependency files: pyproject.toml, uv.lock",
-            "Installing dependencies with uv sync...",
-            "Copying agent.py...",
-            "",
-            "Exposing port 8080...",
-            "Setting CMD: uvicorn agent:app --host 0.0.0.0 --port 8080",
-            "",
-            "✓ Dockerfile created: my-custom-agent/Dockerfile",
-            "✓ Container configuration ready"
-        ]
-
-        for line in output_lines:
-            await asyncio.sleep(0.5)
-            data = json.dumps({"line": line, "done": False})
-            yield f"data: {data}\n\n"
-
-        final_data = json.dumps({
-            "done": True,
-            "message": "Dockerfile 创建完成",
-            "file_path": "my-custom-agent/Dockerfile",
-            "output": "\n".join(output_lines)
+    else:
+        return JSONResponse({
+            "initialized": False,
+            "workspace_id": None,
+            "workspace_path": None
         })
-        yield f"data: {final_data}\n\n"
 
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
-    )
 
-@router.get("/container/step4-stream")
-async def container_step4_buildx_setup_stream(session_id: str):
-    """Container Step 4: 模拟设置 Docker Buildx - SSE 流式输出"""
-    logger.info(f"Session {session_id}: 执行 Container Step 4 - Buildx 设置 (SSE)")
+@router.post("/container/workspace/cleanup")
+async def cleanup_container_workspace(request: Request, user: dict = Depends(require_login)):
+    """清理 Container 工作空间"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
 
-    async def generate():
-        output_lines = [
-            "Setting up Docker Buildx...",
-            "Creating new builder instance: agentcore-builder",
-            "",
-            "$ docker buildx create --use",
-            "agentcore-builder",
-            "",
-            "$ docker buildx inspect --bootstrap",
-            "Name:   agentcore-builder",
-            "Driver: docker-container",
-            "",
-            "Platforms:",
-            "  - linux/amd64",
-            "  - linux/arm64",
-            "  - linux/arm/v7",
-            "  - linux/arm/v6",
-            "",
-            "✓ Buildx configured successfully",
-            "✓ Ready to build multi-platform images"
-        ]
+    workspace = container_workspaces.get(user_session_id)
 
-        for line in output_lines:
-            await asyncio.sleep(0.4)
-            data = json.dumps({"line": line, "done": False})
-            yield f"data: {data}\n\n"
+    if not workspace:
+        return JSONResponse({"success": False, "message": "没有 Container 工作目录"})
 
-        final_data = json.dumps({
-            "done": True,
-            "message": "Docker Buildx 设置完成",
-            "output": "\n".join(output_lines)
+    # 检查是否有部署的 runtime
+    if workspace.runtime_id:
+        return JSONResponse({
+            "success": False,
+            "message": "请先清理 Container Runtime 环境",
+            "runtime_id": workspace.runtime_id
         })
-        yield f"data: {final_data}\n\n"
 
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
-    )
+    # 删除目录
+    try:
+        if os.path.exists(workspace.workspace_path):
+            shutil.rmtree(workspace.workspace_path)
+            logger.info(f"[Container Workspace Cleanup] Deleted directory {workspace.workspace_path}")
+    except OSError as e:
+        logger.error(f"[Container Workspace Cleanup] Failed to delete directory: {e}")
+        return JSONResponse({
+            "success": False,
+            "message": f"删除目录失败: {str(e)}"
+        }, status_code=500)
 
-@router.get("/container/step5-stream")
-async def container_step5_build_push_stream(session_id: str):
-    """Container Step 5: 模拟构建并推送到 ECR - SSE 流式输出"""
-    logger.info(f"Session {session_id}: 执行 Container Step 5 - 构建推送镜像 (SSE)")
+    del container_workspaces[user_session_id]
+
+    return JSONResponse({"success": True, "message": "Container 工作目录已清理"})
+
+
+@router.post("/container/workspace/clear-runtime")
+async def clear_container_workspace_runtime(request: Request, user: dict = Depends(require_login)):
+    """清除 Container 工作空间的 Runtime 关联"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = container_workspaces.get(user_session_id)
+
+    if not workspace:
+        return JSONResponse({"success": False, "message": "没有 Container 工作目录"})
+
+    old_runtime_id = workspace.runtime_id
+    old_runtime_arn = workspace.runtime_arn
+    workspace.runtime_id = None
+    workspace.runtime_arn = None
+    logger.info(f"[Container Workspace] Cleared runtime association: {old_runtime_id}, {old_runtime_arn}")
+
+    return JSONResponse({
+        "success": True,
+        "message": "Container Runtime 关联已清除",
+        "cleared_runtime_id": old_runtime_id
+    })
+
+
+# Container 执行 API
+
+@router.get("/container/workspace/execute")
+async def execute_container_command_stream(request: Request, command: str, user: dict = Depends(require_login)):
+    """执行 Container 工作空间命令 - SSE 流式输出"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = container_workspaces.get(user_session_id)
+
+    if not workspace:
+        async def error_generator():
+            yield f"data: {json.dumps({'type': 'error', 'message': '请先初始化 Container 工作环境'})}\n\n"
+        return StreamingResponse(error_generator(), media_type="text/event-stream")
+
+    logger.info(f"[Container Execute] user={user_session_id}, command={command[:100]}...")
 
     async def generate():
+        start_time = time.time()
+        last_heartbeat = time.time()
+
         try:
-            ecr_image_uri = build_container_image_uri()
-        except ValueError as e:
-            error_data = json.dumps({
-                "done": True,
-                "error": str(e)
-            })
-            yield f"data: {error_data}\n\n"
-            return
-
-        output_lines = [
-            "Logging in to Amazon ECR...",
-            f"$ aws ecr get-login-password --region {REGION} | docker login ...",
-            "Login Succeeded",
-            "",
-            f"Building Docker image for platform linux/arm64...",
-            f"Target: {ecr_image_uri}",
-            "",
-            "$ docker buildx build --platform linux/arm64 --push .",
-            "[+] Building 45.2s (12/12) FINISHED",
-            " => [internal] load build definition from Dockerfile",
-            " => [internal] load .dockerignore",
-            " => [1/6] FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim",
-            " => [2/6] WORKDIR /app",
-            " => [3/6] COPY pyproject.toml uv.lock ./",
-            " => [4/6] RUN uv sync --frozen --no-cache",
-            " => [5/6] COPY agent.py ./",
-            " => [6/6] EXPOSE 8080",
-            " => exporting to image",
-            " => pushing layers",
-            f" => pushing manifest for {ecr_image_uri}",
-            "",
-            "✓ Image built and pushed successfully!",
-            f"✓ Image URI: {ecr_image_uri}"
-        ]
-
-        for line in output_lines:
-            await asyncio.sleep(0.3)
-            data = json.dumps({"line": line, "done": False})
-            yield f"data: {data}\n\n"
-
-        final_data = json.dumps({
-            "done": True,
-            "message": "Docker 镜像构建推送完成",
-            "ecr_image_uri": ecr_image_uri,
-            "output": "\n".join(output_lines)
-        })
-        yield f"data: {final_data}\n\n"
-
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
-    )
-
-@router.get("/container/step6-stream")
-async def container_step6_deploy_stream(session_id: str, agent_name: Optional[str] = None):
-    """Container Step 6: 真实部署 Runtime - SSE 流式输出"""
-    init_clients()
-    agent_name = agent_name or f"container_demo_{int(time.time())}"
-    logger.info(f"Session {session_id}: 开始部署 Container Runtime {agent_name} (SSE)")
-
-    async def generate():
-        try:
-            ecr_image_uri = build_container_image_uri()
-            start_msg = json.dumps({"line": f"正在创建 AgentCore Runtime: {agent_name}", "done": False})
-            yield f"data: {start_msg}\n\n"
-
-            image_msg = json.dumps({"line": f"使用容器镜像: {ecr_image_uri}", "done": False})
-            yield f"data: {image_msg}\n\n"
-
-            logger.info(f"创建 Container Runtime: {agent_name}")
-            response = agentcore_control_client.create_agent_runtime(
-                agentRuntimeName=agent_name,
-                agentRuntimeArtifact={'containerConfiguration': {'containerUri': ecr_image_uri}},
-                networkConfiguration={"networkMode": "PUBLIC"},
-                roleArn=CONTAINER_ROLE_ARN
+            process = await asyncio.create_subprocess_shell(
+                command,
+                cwd=workspace.workspace_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env={**os.environ, "PYTHONUNBUFFERED": "1"}
             )
 
-            runtime_arn = response['agentRuntimeArn']
-            runtime_id = response['agentRuntimeId']
+            stdout_queue = asyncio.Queue()
+            stderr_queue = asyncio.Queue()
 
-            runtime_sessions[session_id] = {
-                "deployment_type": "container",
-                "runtime_arn": runtime_arn,
-                "runtime_id": runtime_id,
-                "agent_name": agent_name,
-                "ecr_image_uri": ecr_image_uri,
-                "ecr_repository_name": CONTAINER_ECR_REPOSITORY,
-                "image_tag": CONTAINER_IMAGE_TAG,
-                "created_at": time.time()
+            async def read_to_queue(stream, queue, stream_type):
+                while True:
+                    line = await stream.readline()
+                    if not line:
+                        await queue.put(None)
+                        break
+                    text = line.decode('utf-8', errors='replace').rstrip('\n\r')
+                    await queue.put({"type": stream_type, "line": text, "timestamp": time.time()})
+
+            stdout_task = asyncio.create_task(read_to_queue(process.stdout, stdout_queue, "stdout"))
+            stderr_task = asyncio.create_task(read_to_queue(process.stderr, stderr_queue, "stderr"))
+
+            stdout_done = False
+            stderr_done = False
+
+            while not (stdout_done and stderr_done):
+                current_time = time.time()
+                if current_time - last_heartbeat >= SSE_HEARTBEAT_INTERVAL:
+                    heartbeat_data = json.dumps({"type": "heartbeat", "timestamp": current_time})
+                    yield f"data: {heartbeat_data}\n\n"
+                    last_heartbeat = current_time
+
+                try:
+                    try:
+                        item = stdout_queue.get_nowait()
+                        if item is None:
+                            stdout_done = True
+                        else:
+                            yield f"data: {json.dumps(item)}\n\n"
+                    except asyncio.QueueEmpty:
+                        pass
+
+                    try:
+                        item = stderr_queue.get_nowait()
+                        if item is None:
+                            stderr_done = True
+                        else:
+                            yield f"data: {json.dumps(item)}\n\n"
+                    except asyncio.QueueEmpty:
+                        pass
+
+                    await asyncio.sleep(0.05)
+                except Exception as e:
+                    logger.error(f"Error reading output: {e}")
+                    break
+
+            await process.wait()
+            await stdout_task
+            await stderr_task
+
+            duration = time.time() - start_time
+            files = get_file_tree(workspace.workspace_path)
+
+            done_data = {
+                "type": "done",
+                "success": process.returncode == 0,
+                "return_code": process.returncode,
+                "duration": duration,
+                "files": files
             }
-
-            logger.info(f"Container Runtime 创建成功: {runtime_arn}")
-            complete_msg = json.dumps({
-                "line": f"\n✓ Runtime 创建成功!\n\nRuntime ARN: {runtime_arn}\nRuntime ID: {runtime_id}\nStatus: CREATING",
-                "done": False
-            })
-            yield f"data: {complete_msg}\n\n"
-
-            final_data = json.dumps({
-                "done": True,
-                "status": "success",
-                "runtime_arn": runtime_arn,
-                "runtime_id": runtime_id,
-                "runtime_version": "1",
-                "agent_name": agent_name,
-                "ecr_image_uri": ecr_image_uri,
-                "message": "Container Runtime 部署成功！"
-            })
-            yield f"data: {final_data}\n\n"
+            yield f"data: {json.dumps(done_data)}\n\n"
 
         except Exception as e:
-            logger.error(f"Container 部署失败: {str(e)}")
-            error_data = json.dumps({"done": True, "error": f"部署失败: {str(e)}"})
-            yield f"data: {error_data}\n\n"
+            logger.error(f"[Container Execute] Error: {e}")
+            error_data = {"type": "error", "message": str(e)}
+            yield f"data: {json.dumps(error_data)}\n\n"
 
     return StreamingResponse(
         generate(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"}
     )
+
+
+class ContainerWriteFileRequest(BaseModel):
+    """Container 写入文件请求"""
+    file_path: str
+    content: str
+
+
+@router.post("/container/workspace/write-file")
+async def write_container_file(request: Request, body: ContainerWriteFileRequest, user: dict = Depends(require_login)):
+    """写入文件到 Container 工作空间"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = container_workspaces.get(user_session_id)
+
+    if not workspace:
+        return JSONResponse({"success": False, "message": "请先初始化 Container 工作环境"}, status_code=400)
+
+    full_path = os.path.join(workspace.workspace_path, body.file_path)
+
+    # 安全检查
+    abs_full_path = os.path.abspath(full_path)
+    abs_workspace_path = os.path.abspath(workspace.workspace_path)
+    if not abs_full_path.startswith(abs_workspace_path):
+        logger.warning(f"[Container Write File] Path traversal attempt: {body.file_path}")
+        return JSONResponse({"success": False, "message": "非法文件路径"}, status_code=400)
+
+    try:
+        dir_path = os.path.dirname(full_path)
+        if dir_path:  # 只有当目录路径非空时才创建
+            os.makedirs(dir_path, exist_ok=True)
+        with open(full_path, 'w', encoding='utf-8') as f:
+            f.write(body.content)
+
+        file_size = len(body.content.encode('utf-8'))
+        logger.info(f"[Container Write File] Written {file_size} bytes to {full_path}")
+
+        files = get_file_tree(workspace.workspace_path)
+
+        return JSONResponse({
+            "success": True,
+            "file_path": full_path,
+            "size": file_size,
+            "message": "文件写入成功",
+            "files": files
+        })
+
+    except OSError as e:
+        logger.error(f"[Container Write File] Error: {e}")
+        return JSONResponse({"success": False, "message": f"写入失败: {str(e)}"}, status_code=500)
+
+
+class ContainerExecutePythonRequest(BaseModel):
+    """Container 执行 Python 代码请求"""
+    code: str
+    session_id: str
+
+
+@router.post("/container/workspace/execute-python")
+async def execute_container_python_stream(request: Request, body: ContainerExecutePythonRequest, user: dict = Depends(require_login)):
+    """执行 Container Python 代码 - SSE 流式输出"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = container_workspaces.get(user_session_id)
+
+    if not workspace:
+        return JSONResponse({"success": False, "message": "请先初始化 Container 工作环境"}, status_code=400)
+
+    logger.info(f"[Container Execute Python] User {user_session_id}, code length: {len(body.code)}")
+
+    async def generate():
+        try:
+            script_path = os.path.join(workspace.workspace_path, "_container_deploy.py")
+            with open(script_path, 'w', encoding='utf-8') as f:
+                f.write(body.code)
+
+            logger.info(f"[Container Execute Python] Script saved to {script_path}")
+
+            start_data = {"type": "start", "message": "开始执行 Python 脚本..."}
+            yield f"data: {json.dumps(start_data)}\n\n"
+
+            start_time = time.time()
+            last_heartbeat = start_time
+
+            process = await asyncio.create_subprocess_exec(
+                "python", script_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=workspace.workspace_path,
+                env={**os.environ, "PYTHONUNBUFFERED": "1"}
+            )
+
+            full_stdout = []
+            full_stderr = []
+            stdout_queue = asyncio.Queue()
+            stderr_queue = asyncio.Queue()
+
+            async def read_stream(stream, queue, stream_type, output_list):
+                try:
+                    while True:
+                        line = await stream.readline()
+                        if not line:
+                            await queue.put(None)
+                            break
+                        decoded = line.decode('utf-8', errors='replace').rstrip()
+                        output_list.append(decoded)
+                        await queue.put({"type": stream_type, "line": decoded})
+                except Exception as e:
+                    logger.error(f"Error reading {stream_type}: {e}")
+                    await queue.put(None)
+
+            stdout_task = asyncio.create_task(read_stream(process.stdout, stdout_queue, "stdout", full_stdout))
+            stderr_task = asyncio.create_task(read_stream(process.stderr, stderr_queue, "stderr", full_stderr))
+
+            stdout_done = False
+            stderr_done = False
+
+            while not (stdout_done and stderr_done):
+                current_time = time.time()
+                if current_time - last_heartbeat >= SSE_HEARTBEAT_INTERVAL:
+                    heartbeat_data = json.dumps({"type": "heartbeat", "timestamp": current_time})
+                    yield f"data: {heartbeat_data}\n\n"
+                    last_heartbeat = current_time
+
+                try:
+                    try:
+                        item = stdout_queue.get_nowait()
+                        if item is None:
+                            stdout_done = True
+                        else:
+                            yield f"data: {json.dumps(item)}\n\n"
+                    except asyncio.QueueEmpty:
+                        pass
+
+                    try:
+                        item = stderr_queue.get_nowait()
+                        if item is None:
+                            stderr_done = True
+                        else:
+                            yield f"data: {json.dumps(item)}\n\n"
+                    except asyncio.QueueEmpty:
+                        pass
+
+                    await asyncio.sleep(0.05)
+                except Exception as e:
+                    logger.error(f"Error in output loop: {e}")
+                    break
+
+            await process.wait()
+            await stdout_task
+            await stderr_task
+
+            duration = time.time() - start_time
+
+            # 解析结果
+            result_data = None
+            for line in full_stdout:
+                if line.startswith("__RESULT__:"):
+                    try:
+                        result_data = json.loads(line[11:])
+                        # 更新工作空间的 runtime 信息
+                        if result_data.get("runtime_id"):
+                            workspace.runtime_id = result_data["runtime_id"]
+                        if result_data.get("runtime_arn"):
+                            workspace.runtime_arn = result_data["runtime_arn"]
+                        if result_data.get("ecr_image_uri"):
+                            workspace.ecr_image_uri = result_data["ecr_image_uri"]
+                    except json.JSONDecodeError:
+                        pass
+
+            files = get_file_tree(workspace.workspace_path)
+
+            done_data = {
+                "type": "done",
+                "success": process.returncode == 0,
+                "return_code": process.returncode,
+                "duration": duration,
+                "stdout": "\n".join(full_stdout),
+                "stderr": "\n".join(full_stderr),
+                "result": result_data,
+                "files": files
+            }
+            yield f"data: {json.dumps(done_data)}\n\n"
+
+        except Exception as e:
+            logger.error(f"[Container Execute Python] Error: {e}")
+            error_data = {"type": "error", "message": str(e)}
+            yield f"data: {json.dumps(error_data)}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"}
+    )
+
 
 @router.get("/container/config")
 async def get_container_config():
