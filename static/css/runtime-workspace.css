@@ -1,0 +1,269 @@
+/* Runtime Workspace Styles */
+
+/* 工作环境状态栏 */
+.workspace-status-bar {
+    border-left: 4px solid #6c757d;
+    background-color: #fff;
+    margin-bottom: 20px;
+}
+
+.workspace-status-bar.initialized {
+    border-left-color: #28a745;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #6c757d;
+    margin-right: 8px;
+    animation: pulse 2s infinite;
+}
+
+.workspace-status-bar.initialized .status-indicator {
+    background-color: #28a745;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* 命令编辑器 */
+.command-editor {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 13px;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
+    padding: 12px;
+    border-radius: 4px;
+    resize: vertical;
+    min-height: 100px;
+}
+
+.command-editor:focus {
+    outline: none;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* 代码编辑器 */
+.code-editor {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 13px;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
+    padding: 12px;
+    border-radius: 4px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 300px;
+}
+
+.code-editor:focus {
+    outline: none;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* 输出日志区域 */
+.output-log {
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    padding: 12px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 12px;
+    border: 1px solid #3c3c3c;
+}
+
+.output-log .stdout {
+    color: #d4d4d4;
+}
+
+.output-log .stderr {
+    color: #f48771;
+}
+
+.output-log .info {
+    color: #569cd6;
+}
+
+/* 文件树 */
+.file-tree {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 12px;
+    max-height: 250px;
+    overflow-y: auto;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 13px;
+}
+
+.file-tree-item {
+    display: flex;
+    align-items: center;
+    padding: 3px 0;
+    white-space: nowrap;
+}
+
+.file-tree-item.directory {
+    font-weight: 500;
+}
+
+.file-tree-item .icon {
+    margin-right: 6px;
+    width: 16px;
+    text-align: center;
+}
+
+.file-tree-item .name {
+    flex: 1;
+}
+
+.file-tree-item .size {
+    margin-left: auto;
+    color: #6c757d;
+    font-size: 11px;
+    padding-left: 10px;
+}
+
+/* 安全警告 */
+.security-warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffecb5;
+    border-radius: 4px;
+    padding: 10px 15px;
+    margin-top: 15px;
+    font-size: 0.9rem;
+}
+
+.security-warning i {
+    color: #856404;
+    margin-right: 8px;
+}
+
+/* 执行状态指示器 */
+.execution-status {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 10px;
+    font-size: 0.9rem;
+}
+
+.execution-status.success {
+    color: #28a745;
+}
+
+.execution-status.error {
+    color: #dc3545;
+}
+
+.execution-status.running {
+    color: #0d6efd;
+}
+
+/* 文件路径输入 */
+.file-path-input {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 13px;
+}
+
+/* 步骤卡片标记 */
+.step-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 10px;
+}
+
+.step-badge.mock {
+    background-color: #e9ecef;
+    color: #6c757d;
+}
+
+.step-badge.real {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.step-badge.new {
+    background-color: #cfe2ff;
+    color: #084298;
+}
+
+/* 分隔线 */
+.section-divider {
+    border-top: 2px dashed #dee2e6;
+    margin: 20px 0;
+    padding-top: 20px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .workspace-status-bar .d-flex {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+
+    .workspace-actions {
+        margin-top: 12px;
+        width: 100%;
+    }
+
+    .workspace-actions .btn {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+
+    .command-editor,
+    .code-editor {
+        font-size: 12px;
+        min-height: 80px;
+    }
+
+    .output-log {
+        max-height: 200px;
+        font-size: 11px;
+    }
+
+    .file-tree {
+        max-height: 150px;
+        font-size: 12px;
+    }
+}
+
+/* Toast 容器 */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+}
+
+/* 编辑器标签 */
+.editor-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.editor-label .label-text {
+    font-weight: 500;
+    color: #495057;
+}
+
+.editor-label .label-hint {
+    font-size: 0.8rem;
+    color: #6c757d;
+}

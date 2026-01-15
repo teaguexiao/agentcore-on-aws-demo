@@ -4,18 +4,22 @@ AgentCore Runtime Demo API Module
 提供 Runtime 演示的所有 API 端点:
 - Mock API: Step 2, 3, 5-package
 - 真实 API: Step 5-deploy, 6, 7, 8
+- 工作空间管理 API: init, status, cleanup, execute, write-file, files
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request, Depends, Cookie
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, validator
 import boto3
 import os
 import json
-from typing import Optional, Dict, Any, AsyncGenerator
+from typing import Optional, Dict, Any, AsyncGenerator, List
 import logging
 import time
 import asyncio
+import secrets
+import shutil
+from dataclasses import dataclass, field
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -61,6 +65,59 @@ agentcore_control_client = None
 agentcore_client = None
 connection_manager = None  # WebSocket 管理器，由 app.py 注入
 
+# ==================== 工作空间管理 ====================
+
+# 工作空间常量
+WORKSPACE_BASE_PATH = "/tmp/agentcore_workspaces"
+SSE_HEARTBEAT_INTERVAL = 15  # 秒
+FILE_TREE_MAX_DEPTH = 1
+FILE_TREE_MAX_FILES = 100
+
+@dataclass
+class WorkspaceInfo:
+    """工作空间信息"""
+    workspace_id: str              # 唯一ID，也是目录名
+    user_session_id: str           # 关联的用户 session_id (来自 cookie)
+    workspace_path: str            # 完整路径: /tmp/agentcore_workspaces/{workspace_id}
+    created_at: float = field(default_factory=time.time)
+    runtime_id: Optional[str] = None  # 如果有部署的 runtime，记录其 ID
+
+# 用户工作空间映射
+# key: user_session_id (来自登录 cookie)
+# value: WorkspaceInfo
+user_workspaces: Dict[str, WorkspaceInfo] = {}
+
+# 登录验证相关（从 app.py 注入）
+_sessions_dict = None  # 存储 app.py 的 sessions 字典引用
+
+def init_auth(sessions_dict):
+    """初始化认证相关变量（从 app.py 调用）"""
+    global _sessions_dict
+    _sessions_dict = sessions_dict
+    logger.info("Runtime API auth initialized")
+
+def get_current_user_for_runtime(request: Request, session_token: str = Cookie(None)):
+    """获取当前用户（用于 runtime API 的登录验证）"""
+    # 检查是否启用登录
+    login_enabled = os.getenv("LOGIN_ENABLE", "true").lower() == "true"
+
+    # 如果登录禁用，返回默认用户
+    if not login_enabled:
+        return {"username": "default_user", "aws_login": "", "customer_name": "", "session_id": "default_session"}
+
+    # 检查有效会话
+    if _sessions_dict and session_token and session_token in _sessions_dict:
+        return _sessions_dict[session_token]
+
+    return None
+
+def require_login(request: Request, session_token: str = Cookie(None)):
+    """要求登录的依赖项"""
+    user = get_current_user_for_runtime(request, session_token)
+    if not user:
+        raise HTTPException(status_code=401, detail="未登录，请先登录")
+    return user
+
 def init_clients():
     """初始化 boto3 客户端"""
     global s3_client, agentcore_control_client, agentcore_client
@@ -71,11 +128,15 @@ def init_clients():
         agentcore_client = boto3.client('bedrock-agentcore', region_name=REGION)
         logger.info("Boto3 clients initialized")
 
-def init_runtime_vars(cm):
+def init_runtime_vars(cm, sessions_dict=None):
     """初始化 Runtime API 变量 (从 app.py 调用)"""
     global connection_manager
     connection_manager = cm
     init_clients()
+    if sessions_dict is not None:
+        init_auth(sessions_dict)
+    # 确保工作空间基础目录存在
+    os.makedirs(WORKSPACE_BASE_PATH, exist_ok=True)
     logger.info("Runtime API variables initialized")
 
 # ==================== 数据模型 ====================
@@ -380,6 +441,14 @@ async def step5_deploy_runtime_stream(session_id: str, agent_name: Optional[str]
                 "created_at": time.time()
             }
 
+            # 关联到工作空间（如果存在）- 通过遍历查找
+            for ws_user_id, ws_info in user_workspaces.items():
+                # 工作空间没有关联 runtime 的才关联
+                if ws_info.runtime_id is None:
+                    ws_info.runtime_id = runtime_id
+                    logger.info(f"Workspace {ws_user_id} associated with runtime {runtime_id}")
+                    break
+
             logger.info(f"Runtime 创建成功: {runtime_arn}")
 
             # 创建完成消息
@@ -545,6 +614,13 @@ async def step8_cleanup_runtime(request: Step8CleanupRequest):
 
             # 清除会话
             del runtime_sessions[session_id]
+
+        # 清除工作空间的 runtime_id 关联
+        for ws_user_id, ws_info in user_workspaces.items():
+            if ws_info.runtime_id == runtime_id:
+                ws_info.runtime_id = None
+                logger.info(f"Workspace {ws_user_id} runtime association cleared")
+                break
 
         return {
             "status": "success",
@@ -929,3 +1005,607 @@ async def get_container_config():
             "ECR_IMAGE_URI": ecr_image_uri
         }
     }
+
+# ==================== 工作空间管理 API ====================
+
+class WriteFileRequest(BaseModel):
+    """写入文件请求"""
+    file_path: str
+    content: str
+
+def get_file_tree(base_path: str, max_depth: int = FILE_TREE_MAX_DEPTH, max_files: int = FILE_TREE_MAX_FILES) -> List[dict]:
+    """递归获取文件树结构"""
+    file_count = [0]  # 使用列表以便在递归中修改
+    # 忽略的目录
+    ignore_dirs = {'.git', '.venv', '__pycache__', 'node_modules', '.pytest_cache'}
+
+    def scan_dir(path: str, depth: int) -> List[dict]:
+        if depth > max_depth or file_count[0] >= max_files:
+            return []
+
+        items = []
+        try:
+            entries = sorted(os.listdir(path))
+            for entry in entries:
+                if file_count[0] >= max_files:
+                    break
+
+                # 跳过忽略的目录
+                if entry in ignore_dirs:
+                    continue
+
+                full_path = os.path.join(path, entry)
+                file_count[0] += 1
+
+                if os.path.isdir(full_path):
+                    children = scan_dir(full_path, depth + 1)
+                    items.append({
+                        "name": entry,
+                        "type": "directory",
+                        "children": children
+                    })
+                else:
+                    try:
+                        size = os.path.getsize(full_path)
+                    except OSError:
+                        size = 0
+                    items.append({
+                        "name": entry,
+                        "type": "file",
+                        "size": size
+                    })
+        except PermissionError:
+            pass
+        except OSError as e:
+            logger.warning(f"Error scanning directory {path}: {e}")
+
+        return items
+
+    return scan_dir(base_path, 0)
+
+@router.post("/workspace/init")
+async def init_workspace(request: Request, user: dict = Depends(require_login)):
+    """初始化工作空间"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    logger.info(f"[Workspace Init] user_session_id={user_session_id}")
+
+    # 检查是否已有工作目录
+    if user_session_id in user_workspaces:
+        existing = user_workspaces[user_session_id]
+        return JSONResponse({
+            "success": False,
+            "message": "已存在工作目录，请先清理",
+            "existing_workspace_id": existing.workspace_id
+        })
+
+    # 生成唯一 ID
+    workspace_id = f"ws_{int(time.time())}_{secrets.token_hex(4)}"
+    workspace_path = os.path.join(WORKSPACE_BASE_PATH, workspace_id)
+
+    # 创建目录
+    try:
+        os.makedirs(workspace_path, exist_ok=True)
+    except OSError as e:
+        logger.error(f"[Workspace Init] Failed to create directory: {e}")
+        return JSONResponse({
+            "success": False,
+            "message": f"创建目录失败: {str(e)}"
+        }, status_code=500)
+
+    # 保存信息
+    user_workspaces[user_session_id] = WorkspaceInfo(
+        workspace_id=workspace_id,
+        user_session_id=user_session_id,
+        workspace_path=workspace_path
+    )
+
+    logger.info(f"[Workspace Init] Created workspace {workspace_id} at {workspace_path}")
+
+    return JSONResponse({
+        "success": True,
+        "workspace_id": workspace_id,
+        "workspace_path": workspace_path,
+        "message": "工作目录初始化成功"
+    })
+
+@router.get("/workspace/status")
+async def get_workspace_status(request: Request, user: dict = Depends(require_login)):
+    """获取工作空间状态"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = user_workspaces.get(user_session_id)
+
+    if workspace:
+        return JSONResponse({
+            "initialized": True,
+            "workspace_id": workspace.workspace_id,
+            "workspace_path": workspace.workspace_path,
+            "created_at": workspace.created_at,
+            "runtime_id": workspace.runtime_id,
+            "has_runtime": workspace.runtime_id is not None
+        })
+    else:
+        return JSONResponse({
+            "initialized": False,
+            "workspace_id": None,
+            "workspace_path": None
+        })
+
+@router.post("/workspace/clear-runtime")
+async def clear_workspace_runtime(request: Request, user: dict = Depends(require_login)):
+    """清除工作空间的 Runtime 关联（在 Part 8 删除 Runtime 后调用）"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = user_workspaces.get(user_session_id)
+
+    if not workspace:
+        return JSONResponse({"success": False, "message": "没有工作目录"})
+
+    old_runtime_id = workspace.runtime_id
+    workspace.runtime_id = None
+    logger.info(f"[Workspace] Cleared runtime association: {old_runtime_id}")
+
+    return JSONResponse({
+        "success": True,
+        "message": "Runtime 关联已清除",
+        "cleared_runtime_id": old_runtime_id
+    })
+
+
+@router.post("/workspace/cleanup")
+async def cleanup_workspace(request: Request, user: dict = Depends(require_login)):
+    """清理工作空间"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = user_workspaces.get(user_session_id)
+
+    if not workspace:
+        return JSONResponse({"success": False, "message": "没有工作目录"})
+
+    # 检查是否有部署的 runtime
+    if workspace.runtime_id:
+        return JSONResponse({
+            "success": False,
+            "message": "请先清理 Runtime 环境",
+            "runtime_id": workspace.runtime_id
+        })
+
+    # 删除目录
+    try:
+        if os.path.exists(workspace.workspace_path):
+            shutil.rmtree(workspace.workspace_path)
+            logger.info(f"[Workspace Cleanup] Deleted directory {workspace.workspace_path}")
+    except OSError as e:
+        logger.error(f"[Workspace Cleanup] Failed to delete directory: {e}")
+        return JSONResponse({
+            "success": False,
+            "message": f"删除目录失败: {str(e)}"
+        }, status_code=500)
+
+    del user_workspaces[user_session_id]
+
+    return JSONResponse({"success": True, "message": "工作目录已清理"})
+
+@router.get("/workspace/execute")
+async def execute_command_stream(request: Request, command: str, user: dict = Depends(require_login)):
+    """执行命令 - SSE 流式输出"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = user_workspaces.get(user_session_id)
+
+    if not workspace:
+        async def error_generator():
+            yield f"data: {json.dumps({'type': 'error', 'message': '请先初始化工作环境'})}\n\n"
+        return StreamingResponse(error_generator(), media_type="text/event-stream")
+
+    logger.info(f"[Execute Command] user={user_session_id}, command={command[:100]}...")
+
+    async def generate():
+        start_time = time.time()
+        last_heartbeat = time.time()
+
+        try:
+            # 创建子进程
+            process = await asyncio.create_subprocess_shell(
+                command,
+                cwd=workspace.workspace_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env={**os.environ, "PYTHONUNBUFFERED": "1"}
+            )
+
+            async def read_stream(stream, stream_type):
+                """读取流并生成输出"""
+                while True:
+                    line = await stream.readline()
+                    if not line:
+                        break
+                    text = line.decode('utf-8', errors='replace').rstrip('\n\r')
+                    yield {
+                        "type": stream_type,
+                        "line": text,
+                        "timestamp": time.time()
+                    }
+
+            # 创建读取任务
+            stdout_queue = asyncio.Queue()
+            stderr_queue = asyncio.Queue()
+
+            async def read_to_queue(stream, queue, stream_type):
+                async for item in read_stream(stream, stream_type):
+                    await queue.put(item)
+                await queue.put(None)  # 结束标记
+
+            # 启动读取任务
+            stdout_task = asyncio.create_task(read_to_queue(process.stdout, stdout_queue, "stdout"))
+            stderr_task = asyncio.create_task(read_to_queue(process.stderr, stderr_queue, "stderr"))
+
+            stdout_done = False
+            stderr_done = False
+
+            while not (stdout_done and stderr_done):
+                # 检查心跳
+                current_time = time.time()
+                if current_time - last_heartbeat >= SSE_HEARTBEAT_INTERVAL:
+                    heartbeat_data = json.dumps({"type": "heartbeat", "timestamp": current_time})
+                    yield f"data: {heartbeat_data}\n\n"
+                    last_heartbeat = current_time
+
+                # 非阻塞检查队列
+                try:
+                    # 尝试从 stdout 队列获取
+                    try:
+                        item = stdout_queue.get_nowait()
+                        if item is None:
+                            stdout_done = True
+                        else:
+                            yield f"data: {json.dumps(item)}\n\n"
+                    except asyncio.QueueEmpty:
+                        pass
+
+                    # 尝试从 stderr 队列获取
+                    try:
+                        item = stderr_queue.get_nowait()
+                        if item is None:
+                            stderr_done = True
+                        else:
+                            yield f"data: {json.dumps(item)}\n\n"
+                    except asyncio.QueueEmpty:
+                        pass
+
+                    # 短暂等待
+                    await asyncio.sleep(0.05)
+
+                except Exception as e:
+                    logger.error(f"Error reading output: {e}")
+                    break
+
+            # 等待进程结束
+            await process.wait()
+            await stdout_task
+            await stderr_task
+
+            duration = time.time() - start_time
+
+            # 获取文件树
+            files = get_file_tree(workspace.workspace_path)
+
+            # 发送完成消息
+            done_data = {
+                "type": "done",
+                "success": process.returncode == 0,
+                "return_code": process.returncode,
+                "duration": duration,
+                "files": files
+            }
+            yield f"data: {json.dumps(done_data)}\n\n"
+
+        except Exception as e:
+            logger.error(f"[Execute Command] Error: {e}")
+            error_data = {"type": "error", "message": str(e)}
+            yield f"data: {json.dumps(error_data)}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@router.post("/workspace/write-file")
+async def write_file(request: Request, body: WriteFileRequest, user: dict = Depends(require_login)):
+    """写入文件到工作空间"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = user_workspaces.get(user_session_id)
+
+    if not workspace:
+        return JSONResponse({"success": False, "message": "请先初始化工作环境"}, status_code=400)
+
+    # 构建完整路径
+    full_path = os.path.join(workspace.workspace_path, body.file_path)
+
+    # 安全检查：确保路径在工作空间内
+    abs_full_path = os.path.abspath(full_path)
+    abs_workspace_path = os.path.abspath(workspace.workspace_path)
+    if not abs_full_path.startswith(abs_workspace_path):
+        logger.warning(f"[Write File] Path traversal attempt: {body.file_path}")
+        return JSONResponse({"success": False, "message": "非法文件路径"}, status_code=400)
+
+    try:
+        # 创建父目录
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+
+        # 写入文件
+        with open(full_path, 'w', encoding='utf-8') as f:
+            f.write(body.content)
+
+        file_size = len(body.content.encode('utf-8'))
+        logger.info(f"[Write File] Written {file_size} bytes to {full_path}")
+
+        # 获取文件树
+        files = get_file_tree(workspace.workspace_path)
+
+        return JSONResponse({
+            "success": True,
+            "file_path": full_path,
+            "size": file_size,
+            "message": "文件写入成功",
+            "files": files
+        })
+
+    except OSError as e:
+        logger.error(f"[Write File] Error: {e}")
+        return JSONResponse({"success": False, "message": f"写入失败: {str(e)}"}, status_code=500)
+
+
+class ExecutePythonRequest(BaseModel):
+    """执行 Python 代码请求"""
+    code: str
+    session_id: str
+
+
+@router.post("/workspace/execute-python")
+async def execute_python_stream(request: Request, body: ExecutePythonRequest, user: dict = Depends(require_login)):
+    """执行 Python 代码 - SSE 流式输出
+
+    用于执行部署 Runtime 的 Python 脚本，支持：
+    - boto3 API 调用
+    - 流式输出执行日志
+    - 解析 runtime_arn 和 runtime_id
+    """
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = user_workspaces.get(user_session_id)
+
+    if not workspace:
+        return JSONResponse({"success": False, "message": "请先初始化工作环境"}, status_code=400)
+
+    logger.info(f"[Execute Python] User {user_session_id}, code length: {len(body.code)}")
+
+    async def generate():
+        try:
+            # 创建临时 Python 文件
+            script_path = os.path.join(workspace.workspace_path, "_deploy_runtime.py")
+            with open(script_path, 'w', encoding='utf-8') as f:
+                f.write(body.code)
+
+            logger.info(f"[Execute Python] Script saved to {script_path}")
+
+            # 发送开始消息
+            start_data = {"type": "start", "message": "开始执行 Python 脚本..."}
+            yield f"data: {json.dumps(start_data)}\n\n"
+
+            start_time = time.time()
+            last_heartbeat = start_time
+
+            # 使用 asyncio subprocess 执行
+            process = await asyncio.create_subprocess_exec(
+                "python", script_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=workspace.workspace_path,
+                env={**os.environ, "PYTHONUNBUFFERED": "1"}
+            )
+
+            # 收集完整输出用于解析
+            full_stdout = []
+            full_stderr = []
+
+            # 异步读取 stdout 和 stderr
+            stdout_queue = asyncio.Queue()
+            stderr_queue = asyncio.Queue()
+
+            async def read_stream(stream, queue, stream_type):
+                try:
+                    while True:
+                        line = await stream.readline()
+                        if not line:
+                            await queue.put(None)
+                            break
+                        decoded = line.decode('utf-8', errors='replace').rstrip()
+                        if stream_type == "stdout":
+                            full_stdout.append(decoded)
+                        else:
+                            full_stderr.append(decoded)
+                        await queue.put({"type": stream_type, "line": decoded})
+                except Exception as e:
+                    logger.error(f"Error reading {stream_type}: {e}")
+                    await queue.put(None)
+
+            stdout_task = asyncio.create_task(read_stream(process.stdout, stdout_queue, "stdout"))
+            stderr_task = asyncio.create_task(read_stream(process.stderr, stderr_queue, "stderr"))
+
+            stdout_done = False
+            stderr_done = False
+
+            while not (stdout_done and stderr_done):
+                current_time = time.time()
+
+                # 心跳
+                if current_time - last_heartbeat >= SSE_HEARTBEAT_INTERVAL:
+                    yield f": heartbeat\n\n"
+                    last_heartbeat = current_time
+
+                try:
+                    # 读取 stdout
+                    try:
+                        item = stdout_queue.get_nowait()
+                        if item is None:
+                            stdout_done = True
+                        else:
+                            yield f"data: {json.dumps(item)}\n\n"
+                    except asyncio.QueueEmpty:
+                        pass
+
+                    # 读取 stderr
+                    try:
+                        item = stderr_queue.get_nowait()
+                        if item is None:
+                            stderr_done = True
+                        else:
+                            yield f"data: {json.dumps(item)}\n\n"
+                    except asyncio.QueueEmpty:
+                        pass
+
+                    await asyncio.sleep(0.05)
+
+                except Exception as e:
+                    logger.error(f"Error reading output: {e}")
+                    break
+
+            # 等待进程结束
+            await process.wait()
+            await stdout_task
+            await stderr_task
+
+            duration = time.time() - start_time
+
+            # 尝试从输出中解析 runtime_arn 和 runtime_id
+            runtime_arn = None
+            runtime_id = None
+            agent_name = None
+
+            all_output = "\n".join(full_stdout + full_stderr)
+
+            # 解析 RUNTIME_ARN=xxx 格式
+            import re
+            arn_match = re.search(r'RUNTIME_ARN=(\S+)', all_output)
+            if arn_match:
+                runtime_arn = arn_match.group(1)
+
+            id_match = re.search(r'RUNTIME_ID=(\S+)', all_output)
+            if id_match:
+                runtime_id = id_match.group(1)
+
+            name_match = re.search(r'AGENT_NAME=(\S+)', all_output)
+            if name_match:
+                agent_name = name_match.group(1)
+
+            # 如果成功获取到 runtime 信息，保存到会话
+            if runtime_arn and runtime_id and process.returncode == 0:
+                runtime_sessions[body.session_id] = {
+                    "deployment_type": "code",
+                    "runtime_arn": runtime_arn,
+                    "runtime_id": runtime_id,
+                    "agent_name": agent_name,
+                    "created_at": time.time()
+                }
+
+                # 关联到工作空间
+                workspace.runtime_id = runtime_id
+                logger.info(f"[Execute Python] Runtime created: {runtime_id}")
+
+            # 清理临时脚本
+            try:
+                os.remove(script_path)
+            except:
+                pass
+
+            # 获取文件树
+            files = get_file_tree(workspace.workspace_path)
+
+            # 发送完成消息
+            done_data = {
+                "type": "done",
+                "success": process.returncode == 0,
+                "return_code": process.returncode,
+                "duration": duration,
+                "files": files,
+                "runtime_arn": runtime_arn,
+                "runtime_id": runtime_id,
+                "agent_name": agent_name
+            }
+            yield f"data: {json.dumps(done_data)}\n\n"
+
+        except Exception as e:
+            logger.error(f"[Execute Python] Error: {e}")
+            error_data = {"type": "error", "message": str(e)}
+            yield f"data: {json.dumps(error_data)}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@router.get("/workspace/files")
+async def get_files(request: Request, user: dict = Depends(require_login)):
+    """获取工作空间文件树"""
+    user_session_id = request.cookies.get("session_id")
+    if not user_session_id:
+        user_session_id = user.get("session_id", "default_session")
+
+    workspace = user_workspaces.get(user_session_id)
+
+    if not workspace:
+        return JSONResponse({"success": False, "message": "请先初始化工作环境"}, status_code=400)
+
+    files = get_file_tree(workspace.workspace_path)
+
+    # 计算总文件数和大小
+    def count_files(items):
+        total_count = 0
+        total_size = 0
+        for item in items:
+            if item["type"] == "file":
+                total_count += 1
+                total_size += item.get("size", 0)
+            elif item["type"] == "directory":
+                c, s = count_files(item.get("children", []))
+                total_count += c
+                total_size += s
+        return total_count, total_size
+
+    total_files, total_size = count_files(files)
+
+    return JSONResponse({
+        "success": True,
+        "workspace_path": workspace.workspace_path,
+        "files": files,
+        "total_files": total_files,
+        "total_size": total_size
+    })

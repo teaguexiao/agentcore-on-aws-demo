@@ -9,10 +9,13 @@ AgentCore Runtime 部署前置条件检查脚本
 4. IAM 角色是否存在
 5. Bedrock 模型访问权限
 6. deployment_package.zip 是否存在
+7. 工作空间环境（目录权限、命令可用性、磁盘空间）
 """
 
 import os
 import sys
+import shutil
+import subprocess
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from dotenv import load_dotenv
@@ -263,6 +266,73 @@ def check_ecr_image():
         print("    提示: 如不使用 Container Deployment 可忽略")
         return True  # 返回 True 因为这是可选检查
 
+def check_workspace_environment():
+    """检查工作空间环境（真实命令执行功能的前置条件）"""
+    print("\n========== 检查工作空间环境 (真实命令执行) ==========")
+
+    workspace_base = "/tmp/agentcore_workspaces"
+    all_passed = True
+
+    # 1. 检查工作目录是否可创建/可写
+    try:
+        os.makedirs(workspace_base, exist_ok=True)
+        test_file = os.path.join(workspace_base, ".write_test")
+        with open(test_file, 'w') as f:
+            f.write("test")
+        os.remove(test_file)
+        print_status(f"工作目录: {workspace_base}", True, "目录可写")
+    except PermissionError:
+        print_status(f"工作目录: {workspace_base}", False, "无写入权限")
+        all_passed = False
+    except Exception as e:
+        print_status(f"工作目录: {workspace_base}", False, str(e))
+        all_passed = False
+
+    # 2. 检查 uv 命令是否可用
+    uv_path = shutil.which("uv")
+    if uv_path:
+        try:
+            result = subprocess.run(["uv", "--version"], capture_output=True, text=True, timeout=5)
+            version = result.stdout.strip() if result.returncode == 0 else "未知版本"
+            print_status("uv 命令", True, f"已安装 ({version})")
+        except Exception:
+            print_status("uv 命令", True, f"已安装 ({uv_path})")
+    else:
+        print_status("uv 命令", False, "未安装 (Part 2 默认命令需要)")
+        print("    安装命令: curl -LsSf https://astral.sh/uv/install.sh | sh")
+        # 不设置 all_passed = False，因为用户可以修改命令
+
+    # 3. 检查 zip 命令是否可用
+    zip_path = shutil.which("zip")
+    if zip_path:
+        print_status("zip 命令", True, f"已安装 ({zip_path})")
+    else:
+        print_status("zip 命令", False, "未安装 (Part 5-1 打包需要)")
+        print("    安装命令: sudo apt-get install zip (Ubuntu/Debian)")
+        # 不设置 all_passed = False，因为用户可以修改命令
+
+    # 4. 检查磁盘空间
+    try:
+        stat = os.statvfs(workspace_base)
+        free_gb = (stat.f_bavail * stat.f_frsize) / (1024 ** 3)
+        if free_gb >= 1.0:
+            print_status("磁盘空间", True, f"可用: {free_gb:.2f} GB")
+        else:
+            print_status("磁盘空间", False, f"可用: {free_gb:.2f} GB (建议 >= 1 GB)")
+            all_passed = False
+    except Exception as e:
+        print_status("磁盘空间", False, f"检查失败: {str(e)}")
+
+    # 5. 检查 Python 版本
+    python_version = sys.version_info
+    if python_version >= (3, 10):
+        print_status("Python 版本", True, f"{python_version.major}.{python_version.minor}.{python_version.micro}")
+    else:
+        print_status("Python 版本", False, f"{python_version.major}.{python_version.minor} (需要 >= 3.10)")
+        all_passed = False
+
+    return all_passed
+
 def main():
     """主函数"""
     print("=" * 60)
@@ -276,6 +346,7 @@ def main():
         "IAM 角色": check_iam_role(),
         "Bedrock 模型": check_bedrock_model_access(),
         "部署包 (Direct Code)": check_deployment_package(),
+        "工作空间环境": check_workspace_environment(),
         "环境变量 (Container - 可选)": check_container_env_variables(),
         "ECR 镜像 (Container - 可选)": check_ecr_image()
     }
@@ -320,8 +391,14 @@ def main():
             print("    * 在 AWS IAM 控制台创建角色")
             print("    * 授予 Bedrock 和 S3 访问权限")
             print("    * 更新 .env 中的 EXECUTION_ROLE_ARN 配置")
-        if not results["部署包"]:
+        if not results["部署包 (Direct Code)"]:
             print("  - 参考文档准备 deployment_package.zip")
+        if not results["工作空间环境"]:
+            print("  - 确保工作空间环境正常:")
+            print("    * 检查 /tmp 目录写入权限")
+            print("    * 安装 uv: curl -LsSf https://astral.sh/uv/install.sh | sh")
+            print("    * 安装 zip: sudo apt-get install zip")
+            print("    * 确保磁盘空间 >= 1GB")
         return 1
 
 if __name__ == "__main__":
