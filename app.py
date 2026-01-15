@@ -1307,7 +1307,7 @@ if __name__ == "__main__":
     init_agentcore_code_interpreter_vars(logger)
 
     # Initialize shared variables in agentcore_runtime_api.py
-    init_runtime_vars(manager)
+    init_runtime_vars(manager, sessions)
 
     # Log startup message
     logger.info("Starting AgentCore on AWS Demo UI")

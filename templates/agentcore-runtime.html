@@ -7,6 +7,7 @@
     <link href="/static/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/runtime-workspace.css">
     <style>
         /* 复用 agentcore-memory 的代码样式 */
         .code-snippet {
@@ -139,6 +140,37 @@
                                 <!-- Direct Code Deployment Tab -->
                                 <div class="tab-pane fade show active" id="direct-code-tab">
 
+                                    <!-- 工作环境状态栏 -->
+                                    <div class="workspace-status-bar card mb-4" id="workspace-status-bar">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div class="workspace-info">
+                                                    <h5 class="mb-1">
+                                                        <span class="status-indicator" id="workspace-status-dot"></span>
+                                                        工作环境状态:
+                                                        <span id="workspace-status-text">未初始化</span>
+                                                    </h5>
+                                                    <p class="mb-0 text-muted" id="workspace-path-text" style="display: none;">
+                                                        路径: <code id="workspace-path"></code>
+                                                    </p>
+                                                </div>
+                                                <div class="workspace-actions">
+                                                    <button class="btn btn-primary me-2" id="btn-init-workspace" onclick="initWorkspace()">
+                                                        <i class="fas fa-folder-plus me-1"></i> 初始化工作环境
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" id="btn-cleanup-workspace" onclick="cleanupWorkspace()" disabled>
+                                                        <i class="fas fa-trash me-1"></i> 清理工作环境
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <!-- 安全警告 -->
+                                            <div class="security-warning mt-3" id="security-warning" style="display: none;">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                <strong>安全提示:</strong> 命令将在服务器上真实执行，请确保命令安全。
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <!-- Part 1: 前置要求 -->
                                     <div class="runtime-part">
                                         <h4 class="part-header">
@@ -156,38 +188,46 @@
                                     <div class="runtime-part">
                                         <h4 class="part-header">
                                             <i class="fas fa-cog me-2"></i>Part 2: 设置项目并安装依赖
+                                            <span class="step-badge real">真实执行</span>
                                         </h4>
-                                        <p class="text-muted">初始化项目并安装核心依赖包</p>
+                                        <p class="text-muted">初始化项目并安装核心依赖包（命令在服务器真实执行）</p>
 
-                                        <div class="code-snippet">
-<pre style="margin: 0;"># 初始化项目
+                                        <!-- 可编辑命令区 -->
+                                        <div class="mb-3">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-terminal me-1"></i> Shell 命令:</span>
+                                                <span class="label-hint">每行一条命令，按顺序执行</span>
+                                            </div>
+                                            <textarea class="form-control command-editor" id="part2-command" rows="6"># 初始化项目
 uv init agentcore_runtime_direct_deploy --python 3.13
 cd agentcore_runtime_direct_deploy
 
 # 添加核心包
-uv add bedrock-agentcore strands-agents</pre>
+uv add bedrock-agentcore strands-agents</textarea>
                                         </div>
 
-                                        <button class="btn btn-primary" id="btn-step2" onclick="executeStep2()">
-                                            <i class="fas fa-play me-2"></i>执行
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <!-- 执行日志 -->
-                                        <div class="row mb-3" id="log-area-2" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
-                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="log-output-2" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-step2" onclick="executeStep2Real()" disabled>
+                                                <i class="fas fa-play me-2"></i>执行
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="part2-status"></span>
                                         </div>
 
-                                        <div class="result-box" id="result-2" style="display: none;">
-                                            <div class="alert alert-success">
-                                                <h6>执行结果:</h6>
-                                                <pre class="result-output" style="margin: 0;"></pre>
+                                        <!-- 执行输出 -->
+                                        <div id="part2-output-section" style="display: none;">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-terminal me-1"></i> 输出:</span>
                                             </div>
+                                            <div class="output-log" id="part2-output"></div>
+                                        </div>
+
+                                        <!-- 文件树 -->
+                                        <div class="mt-3" id="part2-files-section" style="display: none;">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-folder-open me-1"></i> 当前目录文件:</span>
+                                            </div>
+                                            <div class="file-tree" id="part2-files"></div>
                                         </div>
                                     </div>
 
@@ -195,11 +235,26 @@ uv add bedrock-agentcore strands-agents</pre>
                                     <div class="runtime-part">
                                         <h4 class="part-header">
                                             <i class="fas fa-file-code me-2"></i>Part 3: 创建 Agent 代码
+                                            <span class="step-badge real">真实执行</span>
                                         </h4>
-                                        <p class="text-muted">创建 Agent 入口文件 main.py</p>
+                                        <p class="text-muted">创建 Agent 入口文件（文件将写入到工作目录）</p>
 
-                                        <div class="code-snippet">
-<pre style="margin: 0;">from bedrock_agentcore import BedrockAgentCoreApp
+                                        <!-- 文件路径 -->
+                                        <div class="mb-3">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-file me-1"></i> 文件路径:</span>
+                                            </div>
+                                            <input type="text" class="form-control file-path-input" id="part3-filepath"
+                                                   value="agentcore_runtime_direct_deploy/main.py">
+                                        </div>
+
+                                        <!-- 可编辑代码区 -->
+                                        <div class="mb-3">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-code me-1"></i> 代码内容:</span>
+                                                <span class="label-hint">使用 @app.entrypoint 注解定义入口</span>
+                                            </div>
+                                            <textarea class="form-control code-editor" id="part3-code" rows="18">from bedrock_agentcore import BedrockAgentCoreApp
 from strands import Agent
 
 app = BedrockAgentCoreApp(debug=True)
@@ -214,31 +269,23 @@ def invoke(payload):
     return {"result": result.message}
 
 if __name__ == "__main__":
-    app.run()</pre>
+    app.run()</textarea>
                                         </div>
 
-                                        <p class="text-muted small">使用 <code>@app.entrypoint</code> 注解或实现 <code>/invocations POST</code> 和 <code>/ping GET</code> 服务端点</p>
-
-                                        <button class="btn btn-primary" id="btn-step3" onclick="executeStep3()">
-                                            <i class="fas fa-plus me-2"></i>创建 Agent 代码文件
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <!-- 执行日志 -->
-                                        <div class="row mb-3" id="log-area-3" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
-                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="log-output-3" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-step3" onclick="writeFileStep3()" disabled>
+                                                <i class="fas fa-save me-2"></i>写入文件
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="part3-status"></span>
                                         </div>
 
-                                        <div class="result-box" id="result-3" style="display: none;">
-                                            <div class="alert alert-success">
-                                                <h6>执行结果:</h6>
-                                                <pre class="result-output" style="margin: 0;"></pre>
+                                        <!-- 文件树 -->
+                                        <div class="mt-3" id="part3-files-section" style="display: none;">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-folder-open me-1"></i> 当前目录文件:</span>
                                             </div>
+                                            <div class="file-tree" id="part3-files"></div>
                                         </div>
                                     </div>
 
@@ -263,68 +310,105 @@ if __name__ == "__main__":
                                         </h4>
 
                                         <!-- 步骤5-1: 创建部署包 -->
-                                        <h6><i class="fas fa-box me-2"></i>步骤 1: 创建部署包</h6>
-                                        <div class="code-snippet">
-<pre style="margin: 0;">uv pip install \
---python-platform aarch64-manylinux2014 \
---python-version 3.13 \
---target=deployment_package \
---only-binary=:all: \
--r pyproject.toml
+                                        <h6><i class="fas fa-box me-2"></i>步骤 1: 创建部署包 <span class="step-badge real">真实执行</span></h6>
+                                        <p class="text-muted small">安装依赖并打包（命令在服务器真实执行）</p>
 
-cd deployment_package
-zip -r ../deployment_package.zip .</pre>
-                                        </div>
-
-                                        <button class="btn btn-secondary mb-3" id="btn-step5-package" onclick="executeStep5Package()">
-                                            <i class="fas fa-archive me-2"></i>执行打包
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <!-- 执行日志 -->
-                                        <div class="row mb-3" id="log-area-5-package" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
-                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="log-output-5-package" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                        <!-- 可编辑命令区 -->
+                                        <div class="mb-3">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-terminal me-1"></i> Shell 命令:</span>
                                             </div>
+                                            <textarea class="form-control command-editor" id="part5-1-command" rows="10">cd agentcore_runtime_direct_deploy
+
+# 安装依赖到部署目录 (静默模式)
+uv pip install -q \
+  --python-platform aarch64-manylinux2014 \
+  --python-version 3.13 \
+  --target=deployment_package \
+  --only-binary=:all: \
+  -r pyproject.toml
+
+# 复制代码文件
+cp main.py deployment_package/
+
+# 创建部署包 (静默模式)
+cd deployment_package && zip -qr ../deployment_package.zip .
+
+echo "✅ 部署包创建完成: deployment_package.zip"</textarea>
                                         </div>
 
-                                        <div class="row mb-3" id="result-area-5-package" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>打包结果</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-5-package" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
+                                        <div class="mb-3">
+                                            <button class="btn btn-secondary" id="btn-step5-package" onclick="executeStep5PackageReal()" disabled>
+                                                <i class="fas fa-archive me-2"></i>执行打包
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="part5-1-status"></span>
                                         </div>
+
+                                        <!-- 执行输出 -->
+                                        <div id="part5-1-output-section" style="display: none;">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-terminal me-1"></i> 输出:</span>
+                                            </div>
+                                            <div class="output-log" id="part5-1-output"></div>
+                                        </div>
+
+                                        <!-- 文件树 -->
+                                        <div class="mt-3" id="part5-1-files-section" style="display: none;">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-folder-open me-1"></i> 当前目录文件:</span>
+                                            </div>
+                                            <div class="file-tree" id="part5-1-files"></div>
+                                        </div>
+
+                                        <div class="section-divider"></div>
 
                                         <!-- 步骤5-2: 部署到 Runtime -->
                                         <h6 class="mt-4"><i class="fas fa-rocket me-2"></i>步骤 2: 部署到 Runtime</h6>
-                                        <p class="text-muted small">将代码包上传到 S3 并创建 AgentCore Runtime</p>
-                                        <!-- Demo 代码 -->
-                                        <div class="code-snippet mb-3">
-<pre style="margin: 0;">import boto3
+                                        <p class="text-muted small">将代码包上传到 S3 并创建 AgentCore Runtime（使用上一步生成的部署包）</p>
+
+                                        <!-- 可编辑 Python 代码区 -->
+                                        <div class="mb-3">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-python me-1"></i> Python 代码:</span>
+                                            </div>
+                                            <textarea class="form-control code-editor" id="part5-2-code" rows="38">import boto3
 import time
+import os
 
-# 配置
-region = "{REGION}"
+# ========== 配置 ==========
+region = "${REGION}"
 agent_name = f"runtime_demo_{int(time.time())}"
-s3_bucket = "{S3_BUCKET}"
+s3_bucket = "${S3_BUCKET}"
+role_arn = "${EXECUTION_ROLE_ARN}"
+account_id = "${ACCOUNT_ID}"
+
+# 部署包路径 (来自上一步打包结果)
+deployment_package = "${DEPLOYMENT_PACKAGE_PATH}"
+
+# S3 key
 s3_key = f"{agent_name}/deployment_package.zip"
-role_arn = "{EXECUTION_ROLE_ARN}"
 
-# 上传到 S3
+print(f"开始部署 Runtime: {agent_name}")
+print(f"部署包: {deployment_package}")
+print(f"S3 目标: s3://{s3_bucket}/{s3_key}")
+
+# ========== 1. 上传到 S3 ==========
+print("\n[1/2] 正在上传到 S3...")
 s3_client = boto3.client('s3', region_name=region)
-s3_client.upload_file(
-    'deployment_package.zip',
-    s3_bucket,
-    s3_key
-)
 
-# 创建 Runtime
+s3_client.upload_file(
+    deployment_package,
+    s3_bucket,
+    s3_key,
+    ExtraArgs={'ExpectedBucketOwner': account_id} if account_id else {}
+)
+print(f"✓ S3 上传完成: s3://{s3_bucket}/{s3_key}")
+
+# ========== 2. 创建 Runtime ==========
+print(f"\n[2/2] 正在创建 AgentCore Runtime: {agent_name}...")
 agentcore_client = boto3.client('bedrock-agentcore-control', region_name=region)
+
 response = agentcore_client.create_agent_runtime(
     agentRuntimeName=agent_name,
     agentRuntimeArtifact={
@@ -343,33 +427,41 @@ response = agentcore_client.create_agent_runtime(
     roleArn=role_arn
 )
 
-print(f"Runtime ARN: {response['agentRuntimeArn']}")
-print(f"Runtime ID: {response['agentRuntimeId']}")</pre>
+runtime_arn = response['agentRuntimeArn']
+runtime_id = response['agentRuntimeId']
+
+print(f"✓ Runtime 创建成功!")
+print(f"\nRuntime ARN: {runtime_arn}")
+print(f"Runtime ID: {runtime_id}")
+
+# ========== 输出标记 (供系统解析) ==========
+print(f"\nRUNTIME_ARN={runtime_arn}")
+print(f"RUNTIME_ID={runtime_id}")
+print(f"AGENT_NAME={agent_name}")</textarea>
                                         </div>
 
-
-                                        <button class="btn btn-primary" id="btn-step5-deploy" onclick="executeStep5Deploy()">
-                                            <i class="fas fa-play me-2"></i>部署到 Runtime
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <!-- 执行日志 -->
-                                        <div class="row mb-3" id="log-area-5-deploy" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
-                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="log-output-5-deploy" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-step5-deploy" onclick="executeStep5DeployReal()" disabled>
+                                                <i class="fas fa-play me-2"></i>执行部署
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="part5-2-status"></span>
                                         </div>
 
-                                        <div class="row mb-3" id="result-area-5-deploy" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>部署结果</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-5-deploy" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                        <!-- 输出日志 -->
+                                        <div class="mb-3">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-terminal me-1"></i> 输出:</span>
                                             </div>
+                                            <div class="output-log" id="part5-2-output"></div>
+                                        </div>
+
+                                        <!-- 文件树 -->
+                                        <div class="mt-3" id="part5-2-files-section" style="display: none;">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-folder-open me-1"></i> 当前目录文件:</span>
+                                            </div>
+                                            <div class="file-tree" id="part5-2-files"></div>
                                         </div>
                                     </div>
 
@@ -378,21 +470,36 @@ print(f"Runtime ID: {response['agentRuntimeId']}")</pre>
                                         <h4 class="part-header">
                                             <i class="fas fa-heartbeat me-2"></i>Part 6: 检查 Runtime 状态
                                         </h4>
-                                        <p class="text-muted">检查 Runtime 部署状态</p>
+                                        <p class="text-muted">检查 Runtime 部署状态（等待状态变为 READY）</p>
 
-                                        <!-- Demo 代码 -->
-                                        <div class="code-snippet mb-3">
-<pre style="margin: 0;">import boto3
+                                        <!-- 可编辑 Python 代码区 -->
+                                        <div class="mb-3">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-python me-1"></i> Python 代码:</span>
+                                            </div>
+                                            <textarea class="form-control code-editor" id="part6-code" rows="28">import boto3
+import time
 
-agentcore_client = boto3.client('bedrock-agentcore-control', region_name='us-west-2')
+# ========== 配置 ==========
+region = "${REGION}"
+runtime_id = "${RUNTIME_ID}"
+runtime_version = "1"
+
+print(f"检查 Runtime 状态: {runtime_id}")
+
+# ========== 查询状态 ==========
+agentcore_client = boto3.client('bedrock-agentcore-control', region_name=region)
 
 response = agentcore_client.get_agent_runtime(
-    agentRuntimeId='{runtime_id}',
-    agentRuntimeVersion='1'
+    agentRuntimeId=runtime_id,
+    agentRuntimeVersion=runtime_version
 )
 
-print(f"Status: {response['status']}")
-print(f"ARN: {response['agentRuntimeArn']}")
+status = response['status']
+arn = response['agentRuntimeArn']
+
+print(f"\n状态: {status}")
+print(f"ARN: {arn}")
 
 # 状态说明:
 # - CREATING: 创建中
@@ -400,32 +507,32 @@ print(f"ARN: {response['agentRuntimeArn']}")
 # - CREATE_FAILED: 创建失败
 # - UPDATING: 更新中
 # - UPDATE_FAILED: 更新失败
-# - DELETING: 删除中</pre>
+# - DELETING: 删除中
+
+if status == "READY":
+    print("\n✓ Runtime 已就绪，可以调用!")
+elif status == "CREATING":
+    print("\n⏳ Runtime 仍在创建中，请稍后再试...")
+elif status == "CREATE_FAILED":
+    print("\n✗ Runtime 创建失败!")
+    if 'failureReason' in response:
+        print(f"失败原因: {response['failureReason']}")</textarea>
                                         </div>
 
                                         <div class="mb-3">
-                                            <label class="form-label">Runtime ID:</label>
-                                            <input type="text" class="form-control" id="input-runtime-id" placeholder="自动填充或手动输入">
+                                            <button class="btn btn-info" id="btn-step6" onclick="executeStep6Real()" disabled>
+                                                <i class="fas fa-search me-2"></i>检查状态
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="part6-status"></span>
                                         </div>
 
+                                        <!-- 输出日志 -->
                                         <div class="mb-3">
-                                            <label class="form-label">Runtime Version:</label>
-                                            <input type="text" class="form-control" id="input-runtime-version" value="1">
-                                        </div>
-
-                                        <button class="btn btn-info" id="btn-step6" onclick="executeStep6()">
-                                            <i class="fas fa-search me-2"></i>检查状态
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <!-- 状态结果 -->
-                                        <div class="row mb-3" id="result-area-6" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>状态信息</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-6" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-terminal me-1"></i> 输出:</span>
                                             </div>
+                                            <div class="output-log" id="part6-output"></div>
                                         </div>
                                     </div>
 
@@ -434,60 +541,66 @@ print(f"ARN: {response['agentRuntimeArn']}")
                                         <h4 class="part-header">
                                             <i class="fas fa-paper-plane me-2"></i>Part 7: 调用 Agent
                                         </h4>
-                                        <p class="text-muted">调用已部署的 Agent</p>
+                                        <p class="text-muted">调用已部署的 Agent（确保 Runtime 状态为 READY）</p>
 
-                                        <!-- Demo 代码 -->
-                                        <div class="code-snippet mb-3">
-<pre style="margin: 0;">import boto3
+                                        <!-- 可编辑 Python 代码区 -->
+                                        <div class="mb-3">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-python me-1"></i> Python 代码:</span>
+                                            </div>
+                                            <textarea class="form-control code-editor" id="part7-code" rows="32">import boto3
 import json
 
-agent_core_client = boto3.client('bedrock-agentcore', region_name='us-west-2')
+# ========== 配置 ==========
+region = "${REGION}"
+runtime_arn = "${RUNTIME_ARN}"
+session_id = "demo_session_" + "x" * 30  # 至少 33 个字符
+
+# 用户输入
+prompt = "请介绍一下 Amazon Bedrock AgentCore"
+
+print(f"调用 Agent: {runtime_arn}")
+print(f"Prompt: {prompt}")
+
+# ========== 调用 Agent ==========
+agent_core_client = boto3.client('bedrock-agentcore', region_name=region)
 
 # Direct Code Deployment 使用简单的 payload 格式
 payload = json.dumps({
-    "prompt": "请介绍一下 Amazon Bedrock AgentCore"
+    "prompt": prompt
 })
 
 response = agent_core_client.invoke_agent_runtime(
-    agentRuntimeArn='{runtime_arn}',
-    runtimeSessionId='dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmt',  # Must be 33+ chars
+    agentRuntimeArn=runtime_arn,
+    runtimeSessionId=session_id,
     payload=payload,
     qualifier="DEFAULT"
 )
 
+# 读取响应
 response_body = response['response'].read()
 response_data = json.loads(response_body)
-print("Agent Response:", response_data)</pre>
+
+print("\n" + "="*50)
+print("Agent 响应:")
+print("="*50)
+print(json.dumps(response_data, indent=2, ensure_ascii=False))</textarea>
                                         </div>
 
                                         <div class="mb-3">
-                                            <label class="form-label">Runtime ARN:</label>
-                                            <input type="text" class="form-control" id="input-runtime-arn" placeholder="自动填充或手动输入">
+                                            <button class="btn btn-success" id="btn-step7" onclick="executeStep7Real()" disabled>
+                                                <i class="fas fa-play me-2"></i>调用 Agent
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="part7-status"></span>
                                         </div>
 
+                                        <!-- 输出日志 -->
                                         <div class="mb-3">
-                                            <label class="form-label">Session ID (至少 33 个字符):</label>
-                                            <input type="text" class="form-control" id="input-session-id" value="dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmt">
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label class="form-label">Prompt:</label>
-                                            <textarea class="form-control" id="input-prompt" rows="3" placeholder="输入您的问题...">请介绍一下 Amazon Bedrock AgentCore</textarea>
-                                        </div>
-
-                                        <button class="btn btn-success" id="btn-step7" onclick="executeStep7()">
-                                            <i class="fas fa-play me-2"></i>调用 Agent
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <!-- Agent 响应 -->
-                                        <div class="row mb-3" id="result-area-7" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-robot me-2"></i>Agent 响应</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-7" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-terminal me-1"></i> 输出:</span>
                                             </div>
+                                            <div class="output-log" id="part7-output"></div>
                                         </div>
                                     </div>
 
@@ -496,64 +609,112 @@ print("Agent Response:", response_data)</pre>
                                         <h4 class="part-header">
                                             <i class="fas fa-trash-alt me-2"></i>Part 8: 清理 Runtime
                                         </h4>
-                                        <p class="text-muted">删除已部署的 Runtime</p>
+                                        <p class="text-muted">删除已部署的 Runtime 和 S3 部署包</p>
 
                                         <div class="alert alert-warning">
                                             <i class="fas fa-exclamation-triangle me-2"></i>
                                             <strong>警告:</strong> 删除操作不可逆！请确认要删除的 Runtime。
                                         </div>
 
-                                        <!-- Demo 代码 -->
-                                        <div class="code-snippet mb-3">
-<pre style="margin: 0;">import boto3
+                                        <!-- 可编辑 Python 代码区 -->
+                                        <div class="mb-3">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-python me-1"></i> Python 代码:</span>
+                                            </div>
+                                            <textarea class="form-control code-editor" id="part8-code" rows="30">import boto3
 
-# 配置
-runtime_id = "{runtime_id}"  # 从 Part 5 自动填充
-region = "{REGION}"
+# ========== 配置 ==========
+region = "${REGION}"
+runtime_id = "${RUNTIME_ID}"
+s3_bucket = "${S3_BUCKET}"
+agent_name = "${AGENT_NAME}"
 
-# 删除 Runtime
+print(f"准备删除 Runtime: {runtime_id}")
+
+# ========== 1. 删除 Runtime ==========
+print("\n[1/2] 正在删除 Runtime...")
 agentcore_control_client = boto3.client('bedrock-agentcore-control', region_name=region)
 
 response = agentcore_control_client.delete_agent_runtime(
     agentRuntimeId=runtime_id
 )
 
-print(f"✓ Runtime 已删除: {runtime_id}")
+print(f"✓ Runtime 删除请求已提交")
 print(f"状态: {response['status']}")
 
-# 可选: 删除 S3 文件
-s3_client = boto3.client('s3', region_name=region)
-s3_client.delete_object(
-    Bucket="{S3_BUCKET}",
-    Key=f"{{agent_name}}/deployment_package.zip"
-)
-print("✓ S3 部署包已删除")</pre>
+# ========== 2. 删除 S3 部署包 ==========
+if s3_bucket and agent_name:
+    print(f"\n[2/2] 正在删除 S3 部署包...")
+    s3_key = f"{agent_name}/deployment_package.zip"
+
+    s3_client = boto3.client('s3', region_name=region)
+    s3_client.delete_object(
+        Bucket=s3_bucket,
+        Key=s3_key
+    )
+    print(f"✓ S3 部署包已删除: s3://{s3_bucket}/{s3_key}")
+else:
+    print("\n[2/2] 跳过 S3 清理 (缺少配置)")
+
+print("\n" + "="*50)
+print("清理完成!")
+print("="*50)</textarea>
                                         </div>
 
                                         <div class="mb-3">
-                                            <label class="form-label">Runtime ID:</label>
-                                            <input type="text" class="form-control" id="input-cleanup-runtime-id" placeholder="自动填充或手动输入">
+                                            <button class="btn btn-danger" id="btn-step8" onclick="executeStep8Real()" disabled>
+                                                <i class="fas fa-trash me-2"></i>删除 Runtime
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="part8-status"></span>
                                         </div>
 
-                                        <button class="btn btn-danger" id="btn-step8" onclick="executeStep8()">
-                                            <i class="fas fa-trash me-2"></i>删除 Runtime
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <!-- 清理结果 -->
-                                        <div class="row mb-3" id="result-area-8" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>清理结果</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-8" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                        <!-- 输出日志 -->
+                                        <div class="mb-3">
+                                            <div class="editor-label">
+                                                <span class="label-text"><i class="fas fa-terminal me-1"></i> 输出:</span>
                                             </div>
+                                            <div class="output-log" id="part8-output"></div>
                                         </div>
                                     </div>
 
                                 </div>
 
                                 <div class="tab-pane fade" id="container-tab">
+
+                                    <!-- Part 0: 工作空间管理 -->
+                                    <div class="runtime-part workspace-management">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-folder-open me-2"></i>Part 0: 工作空间管理
+                                        </h4>
+                                        <p class="text-muted">初始化或清理 Container 工作空间（独立于 Direct Code 工作空间）</p>
+
+                                        <div class="alert alert-danger">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            <strong>安全警告：</strong> 工作空间中的命令将在服务器上真实执行，包括 Docker 构建命令。
+                                        </div>
+
+                                        <div id="container-workspace-status" class="workspace-status mb-3">
+                                            <span class="badge bg-secondary">未初始化</span>
+                                        </div>
+
+                                        <div class="btn-group">
+                                            <button class="btn btn-success" id="btn-container-workspace-init" onclick="initContainerWorkspace()">
+                                                <i class="fas fa-play me-2"></i>初始化工作环境
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <button class="btn btn-outline-danger" id="btn-container-workspace-cleanup" onclick="cleanupContainerWorkspace()" disabled>
+                                                <i class="fas fa-trash me-2"></i>清理工作环境
+                                            </button>
+                                        </div>
+
+                                        <div id="container-workspace-info" class="workspace-info mt-3" style="display: none;">
+                                            <small class="text-muted">
+                                                <strong>Workspace ID:</strong> <span id="container-workspace-id"></span><br>
+                                                <strong>路径:</strong> <span id="container-workspace-path"></span>
+                                            </small>
+                                        </div>
+                                    </div>
 
                                     <!-- Part 1: 前置要求 -->
                                     <div class="runtime-part">
@@ -565,73 +726,73 @@ print("✓ S3 部署包已删除")</pre>
                                             <li><i class="fas fa-check-circle text-success me-2"></i>安装 Docker 和 Docker Buildx</li>
                                             <li><i class="fas fa-check-circle text-success me-2"></i>安装 uv 包管理器和 Python 3.11+</li>
                                             <li><i class="fas fa-check-circle text-success me-2"></i>具备适当的 AWS 权限</li>
-                                            <li><i class="fas fa-check-circle text-warning me-2"></i>已创建 ECR 仓库并推送 Docker 镜像</li>
+                                            <li><i class="fas fa-check-circle text-warning me-2"></i>已创建 ECR 仓库</li>
                                             <li><i class="fas fa-check-circle text-success me-2"></i>在 Amazon Bedrock 控制台启用相关模型</li>
                                         </ul>
-                                        <div class="alert alert-warning">
-                                            <i class="fas fa-exclamation-triangle me-2"></i>
-                                            <strong>重要：</strong> Container Deployment 需要预先构建并推送 Docker 镜像到 ECR。请确保已在 .env 中配置 CONTAINER_ECR_REPOSITORY_NAME、CONTAINER_IMAGE_TAG 和 CONTAINER_EXECUTION_ROLE_ARN。
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <strong>说明：</strong> Container Deployment 将在工作空间中构建 Docker 镜像并推送到 ECR，然后部署到 AgentCore Runtime。
+                                            <br>请确保已在 .env 中配置 CONTAINER_ECR_REPOSITORY_NAME、CONTAINER_IMAGE_TAG 和 CONTAINER_EXECUTION_ROLE_ARN。
                                         </div>
                                     </div>
 
-                                    <!-- Part 2: 设置项目并安装依赖 -->
-                                    <div class="runtime-part">
+                                    <!-- Part 2: 初始化项目 -->
+                                    <div class="runtime-part" data-requires-workspace="true">
                                         <h4 class="part-header">
-                                            <i class="fas fa-cog me-2"></i>Part 2: 设置项目并安装依赖
+                                            <i class="fas fa-cog me-2"></i>Part 2: 初始化项目
                                         </h4>
-                                        <p class="text-muted">初始化项目并安装 FastAPI 和 Strands Agents</p>
+                                        <p class="text-muted">初始化项目并安装依赖</p>
 
-                                        <div class="code-snippet">
-<pre style="margin: 0;"># 创建项目目录
-mkdir my-custom-agent && cd my-custom-agent
-
-# 初始化 Python 3.11 项目
-uv init --python 3.11
-
-# 添加依赖
-uv add fastapi 'uvicorn[standard]' pydantic httpx strands-agents</pre>
+                                        <div class="mb-3">
+                                            <label class="form-label">Shell 命令（可编辑）:</label>
+                                            <textarea class="form-control code-editor" id="container-part2-command" rows="4">uv init --no-readme
+uv add fastapi 'uvicorn[standard]' pydantic httpx strands-agents</textarea>
                                         </div>
 
-                                        <button class="btn btn-primary" id="btn-container-step1" onclick="executeContainerStep1()">
-                                            <i class="fas fa-play me-2"></i>执行
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-container-part2" onclick="executeContainerPart2()" disabled>
+                                                <i class="fas fa-play me-2"></i>执行
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part2-status"></span>
+                                        </div>
 
-                                        <!-- 执行日志 -->
-                                        <div class="row mb-3" id="log-area-container-1" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
-                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="log-output-container-1" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                        <div class="log-area mt-3" id="log-area-container-part2" style="display: none;">
+                                            <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                            <div class="log-output" style="max-height: 300px; overflow-y: auto;">
+                                                <pre id="log-output-container-part2"></pre>
                                             </div>
                                         </div>
 
-                                        <div class="row mb-3" id="result-area-container-1" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>执行结果</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-container-1" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
+                                        <div class="file-tree-area mt-3" id="file-tree-container-part2" style="display: none;">
+                                            <h6><i class="fas fa-folder-tree me-2"></i>文件树</h6>
+                                            <div id="file-tree-content-container-part2"></div>
                                         </div>
                                     </div>
 
-                                    <!-- Part 3: 创建 Agent 应用 -->
-                                    <div class="runtime-part">
+                                    <!-- Part 3: 创建 agent.py -->
+                                    <div class="runtime-part" data-requires-workspace="true">
                                         <h4 class="part-header">
-                                            <i class="fas fa-file-code me-2"></i>Part 3: 创建 Agent 应用
+                                            <i class="fas fa-file-code me-2"></i>Part 3: 创建 agent.py
                                         </h4>
-                                        <p class="text-muted">创建 FastAPI 应用 agent.py，实现 /invocations 和 /ping 端点</p>
+                                        <p class="text-muted">创建 Agent 入口文件</p>
 
-                                        <div class="code-snippet">
-<pre style="margin: 0;">from fastapi import FastAPI, HTTPException
+                                        <div class="mb-3">
+                                            <label class="form-label">文件路径:</label>
+                                            <input type="text" class="form-control" id="container-part3-filepath" value="agent.py">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">文件内容（可编辑）:</label>
+                                            <textarea class="form-control code-editor" id="container-part3-content" rows="42">from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any
 from datetime import datetime
 from strands import Agent
 
 app = FastAPI(title="Strands Agent Server", version="1.0.0")
+
+# Initialize Strands agent
 strands_agent = Agent()
 
 class InvocationRequest(BaseModel):
@@ -645,16 +806,21 @@ async def invoke_agent(request: InvocationRequest):
     try:
         user_message = request.input.get("prompt", "")
         if not user_message:
-            raise HTTPException(status_code=400, detail="No prompt found")
+            raise HTTPException(
+                status_code=400,
+                detail="No prompt found in input. Please provide a 'prompt' key in the input."
+            )
 
         result = strands_agent(user_message)
         response = {
             "message": result.message,
             "timestamp": datetime.utcnow().isoformat()
         }
+
         return InvocationResponse(output=response)
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Agent processing failed: {str(e)}")
 
 @app.get("/ping")
 async def ping():
@@ -662,43 +828,80 @@ async def ping():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)</pre>
+    uvicorn.run(app, host="0.0.0.0", port=8080)</textarea>
                                         </div>
 
-                                        <button class="btn btn-primary" id="btn-container-step2" onclick="executeContainerStep2()">
-                                            <i class="fas fa-plus me-2"></i>创建 Agent 应用文件
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <!-- 执行日志 -->
-                                        <div class="row mb-3" id="log-area-container-2" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
-                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="log-output-container-2" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-container-part3" onclick="executeContainerPart3()" disabled>
+                                                <i class="fas fa-save me-2"></i>写入文件
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part3-status"></span>
                                         </div>
 
-                                        <div class="row mb-3" id="result-area-container-2" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>执行结果</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-container-2" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
+                                        <div class="file-tree-area mt-3" id="file-tree-container-part3" style="display: none;">
+                                            <h6><i class="fas fa-folder-tree me-2"></i>文件树</h6>
+                                            <div id="file-tree-content-container-part3"></div>
                                         </div>
                                     </div>
 
-                                    <!-- Part 4: 创建 Dockerfile -->
-                                    <div class="runtime-part">
+                                    <!-- Part 4: 依赖管理说明 -->
+                                    <div class="runtime-part" data-requires-workspace="true">
                                         <h4 class="part-header">
-                                            <i class="fab fa-docker me-2"></i>Part 4: 创建 Dockerfile
+                                            <i class="fas fa-file-alt me-2"></i>Part 4: 依赖管理（可选）
+                                        </h4>
+                                        <p class="text-muted">依赖由 uv 自动管理，此步骤可跳过</p>
+
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            使用 <code>uv add</code> 命令后，依赖会自动写入 <code>pyproject.toml</code> 和 <code>uv.lock</code>。
+                                            Dockerfile 使用 <code>uv sync</code> 安装依赖，无需手动创建 requirements.txt。
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">文件路径（如需手动创建）:</label>
+                                            <input type="text" class="form-control" id="container-part4-filepath" value="requirements.txt">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">文件内容（可编辑，通常不需要）:</label>
+                                            <textarea class="form-control code-editor" id="container-part4-content" rows="6"># 依赖由 uv 管理，此文件通常不需要
+# 如果需要手动指定依赖，可以在此编辑
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+pydantic>=2.0.0
+strands-agents>=0.1.0</textarea>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <button class="btn btn-outline-secondary" id="btn-container-part4" onclick="executeContainerPart4()" disabled>
+                                                <i class="fas fa-save me-2"></i>写入文件（可选）
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part4-status"></span>
+                                        </div>
+
+                                        <div class="file-tree-area mt-3" id="file-tree-container-part4" style="display: none;">
+                                            <h6><i class="fas fa-folder-tree me-2"></i>文件树</h6>
+                                            <div id="file-tree-content-container-part4"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 5: 创建 Dockerfile -->
+                                    <div class="runtime-part" data-requires-workspace="true">
+                                        <h4 class="part-header">
+                                            <i class="fab fa-docker me-2"></i>Part 5: 创建 Dockerfile
                                         </h4>
                                         <p class="text-muted">创建 ARM64 架构的 Docker 镜像配置</p>
 
-                                        <div class="code-snippet">
-<pre style="margin: 0;"># Use uv's ARM64 Python base image
+                                        <div class="mb-3">
+                                            <label class="form-label">文件路径:</label>
+                                            <input type="text" class="form-control" id="container-part5-filepath" value="Dockerfile">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">文件内容（可编辑）:</label>
+                                            <textarea class="form-control code-editor" id="container-part5-content" rows="20"># Use uv's ARM64 Python base image
 FROM --platform=linux/arm64 ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 
 WORKDIR /app
@@ -706,7 +909,7 @@ WORKDIR /app
 # Copy uv files
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies
+# Install dependencies (including strands-agents)
 RUN uv sync --frozen --no-cache
 
 # Copy agent file
@@ -716,198 +919,190 @@ COPY agent.py ./
 EXPOSE 8080
 
 # Run application
-CMD ["uv", "run", "uvicorn", "agent:app", "--host", "0.0.0.0", "--port", "8080"]</pre>
+CMD ["uv", "run", "uvicorn", "agent:app", "--host", "0.0.0.0", "--port", "8080"]</textarea>
                                         </div>
 
-                                        <button class="btn btn-primary" id="btn-container-step3" onclick="executeContainerStep3()">
-                                            <i class="fas fa-file-alt me-2"></i>创建 Dockerfile
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <!-- 执行日志和结果 -->
-                                        <div class="row mb-3" id="log-area-container-3" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
-                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="log-output-container-3" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-container-part5" onclick="executeContainerPart5()" disabled>
+                                                <i class="fas fa-save me-2"></i>写入文件
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part5-status"></span>
                                         </div>
 
-                                        <div class="row mb-3" id="result-area-container-3" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>执行结果</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-container-3" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                        <div class="file-tree-area mt-3" id="file-tree-container-part5" style="display: none;">
+                                            <h6><i class="fas fa-folder-tree me-2"></i>文件树</h6>
+                                            <div id="file-tree-content-container-part5"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Part 6: ECR 登录 -->
+                                    <div class="runtime-part" data-requires-workspace="true">
+                                        <h4 class="part-header">
+                                            <i class="fas fa-sign-in-alt me-2"></i>Part 6: ECR 登录
+                                        </h4>
+                                        <p class="text-muted">登录 Amazon ECR</p>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Shell 命令（可编辑）:</label>
+                                            <textarea class="form-control code-editor" id="container-part6-command" rows="2">aws ecr get-login-password --region {REGION} | docker login --username AWS --password-stdin {ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com</textarea>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-container-part6" onclick="executeContainerPart6()" disabled>
+                                                <i class="fas fa-play me-2"></i>执行
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part6-status"></span>
+                                        </div>
+
+                                        <div class="log-area mt-3" id="log-area-container-part6" style="display: none;">
+                                            <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                            <div class="log-output" style="max-height: 300px; overflow-y: auto;">
+                                                <pre id="log-output-container-part6"></pre>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Part 5: 设置 Docker Buildx -->
-                                    <div class="runtime-part">
+                                    <!-- Part 7: Docker 构建并推送 -->
+                                    <div class="runtime-part" data-requires-workspace="true">
                                         <h4 class="part-header">
-                                            <i class="fas fa-tools me-2"></i>Part 5: 设置 Docker Buildx
+                                            <i class="fas fa-cloud-upload-alt me-2"></i>Part 7: Docker 构建并推送
                                         </h4>
-                                        <p class="text-muted">配置 Docker Buildx 以支持多平台构建</p>
+                                        <p class="text-muted">构建 ARM64 Docker 镜像并推送到 ECR（可能需要几分钟）</p>
 
-                                        <div class="code-snippet">
-<pre style="margin: 0;">docker buildx create --use
-docker buildx inspect --bootstrap</pre>
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-clock me-2"></i>
+                                            <strong>提示：</strong> Docker 构建可能需要 2-5 分钟，请耐心等待。
                                         </div>
 
-                                        <button class="btn btn-secondary" id="btn-container-step4" onclick="executeContainerStep4()">
-                                            <i class="fas fa-cogs me-2"></i>配置 Buildx
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <div class="row mb-3" id="log-area-container-4" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
-                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="log-output-container-4" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="row mb-3" id="result-area-container-4" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>执行结果</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-container-4" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-
-                                    <!-- Part 6: 构建并推送到 ECR -->
-                                    <div class="runtime-part">
-                                        <h4 class="part-header">
-                                            <i class="fas fa-cloud-upload-alt me-2"></i>Part 6: 构建并推送到 ECR
-                                        </h4>
-                                        <p class="text-muted">构建 ARM64 Docker 镜像并推送到 Amazon ECR</p>
-
-                                        <div class="alert alert-info">
-                                            <i class="fas fa-info-circle me-2"></i>
-                                            <strong>说明：</strong> 此步骤为模拟演示。实际部署前，请确保已手动执行以下命令完成镜像构建和推送。
-                                        </div>
-
-                                        <div class="code-snippet">
-<pre style="margin: 0;"># 登录 ECR
-aws ecr get-login-password --region {REGION} | \
-  docker login --username AWS --password-stdin \
-  {ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com
-
-# 构建并推送镜像
-docker buildx build \
-  --platform linux/arm64 \
+                                        <div class="mb-3">
+                                            <label class="form-label">Shell 命令（可编辑）:</label>
+                                            <textarea class="form-control code-editor" id="container-part7-command" rows="5">docker buildx build --platform linux/arm64 \
   -t {ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{CONTAINER_ECR_REPOSITORY_NAME}:{CONTAINER_IMAGE_TAG} \
-  --push .</pre>
+  --cache-from type=registry,ref={ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{CONTAINER_ECR_REPOSITORY_NAME}:cache \
+  --cache-to type=registry,ref={ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com/{CONTAINER_ECR_REPOSITORY_NAME}:cache,mode=max \
+  --push .</textarea>
                                         </div>
 
-                                        <button class="btn btn-secondary mb-3" id="btn-container-step5" onclick="executeContainerStep5()">
-                                            <i class="fas fa-play-circle me-2"></i>模拟构建推送过程
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <div class="row mb-3" id="log-area-container-5" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
-                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="log-output-container-5" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-container-part7" onclick="executeContainerPart7()" disabled>
+                                                <i class="fas fa-play me-2"></i>构建并推送
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part7-status"></span>
                                         </div>
 
-                                        <div class="row mb-3" id="result-area-container-5" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>执行结果</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-container-5" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                        <div class="log-area mt-3" id="log-area-container-part7" style="display: none;">
+                                            <h6><i class="fas fa-terminal me-2"></i>构建日志</h6>
+                                            <div class="log-output" style="max-height: 400px; overflow-y: auto;">
+                                                <pre id="log-output-container-part7"></pre>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Part 7: 部署到 AgentCore Runtime -->
-                                    <div class="runtime-part">
+                                    <!-- Part 8: 部署到 AgentCore Runtime -->
+                                    <div class="runtime-part" data-requires-workspace="true">
                                         <h4 class="part-header">
-                                            <i class="fas fa-rocket me-2"></i>Part 7: 部署到 AgentCore Runtime
+                                            <i class="fas fa-rocket me-2"></i>Part 8: 部署到 AgentCore Runtime
                                         </h4>
-                                        <p class="text-muted">使用容器镜像创建 AgentCore Runtime</p>
+                                        <p class="text-muted">使用容器镜像创建 AgentCore Runtime（可编辑 Python 代码）</p>
 
-                                        <div class="code-snippet mb-3">
-<pre style="margin: 0;">import boto3
+                                        <div class="mb-3">
+                                            <label class="form-label">Python 代码（可编辑）:</label>
+                                            <textarea class="form-control code-editor" id="container-part8-code" rows="25">import boto3
 import time
+import json
 
 # 配置
-region = "{REGION}"
-agent_name = f"container_demo_{int(time.time())}"
-ecr_image_uri = "{ECR_IMAGE_URI}"
-role_arn = "{CONTAINER_EXECUTION_ROLE_ARN}"
+REGION = "{REGION}"
+AGENT_NAME = f"container_demo_{int(time.time())}"
+ECR_IMAGE_URI = "{ECR_IMAGE_URI}"
+ROLE_ARN = "{CONTAINER_EXECUTION_ROLE_ARN}"
+
+print(f"正在创建 Container Runtime: {AGENT_NAME}")
+print(f"镜像 URI: {ECR_IMAGE_URI}")
+
+# 创建客户端
+client = boto3.client('bedrock-agentcore-control', region_name=REGION)
 
 # 创建 Runtime
-agentcore_client = boto3.client('bedrock-agentcore-control', region_name=region)
-response = agentcore_client.create_agent_runtime(
-    agentRuntimeName=agent_name,
+response = client.create_agent_runtime(
+    agentRuntimeName=AGENT_NAME,
     agentRuntimeArtifact={
         'containerConfiguration': {
-            'containerUri': ecr_image_uri
+            'containerUri': ECR_IMAGE_URI
         }
     },
     networkConfiguration={"networkMode": "PUBLIC"},
-    roleArn=role_arn
+    roleArn=ROLE_ARN
 )
 
-print(f"Runtime ARN: {response['agentRuntimeArn']}")
-print(f"Runtime ID: {response['agentRuntimeId']}")</pre>
+runtime_arn = response['agentRuntimeArn']
+runtime_id = response['agentRuntimeId']
+
+print(f"\n✓ Runtime 创建成功!")
+print(f"Runtime ARN: {runtime_arn}")
+print(f"Runtime ID: {runtime_id}")
+print(f"Status: CREATING")
+
+# 输出结果供前端解析
+print(f"\n__RESULT__:{json.dumps({'runtime_arn': runtime_arn, 'runtime_id': runtime_id, 'agent_name': AGENT_NAME, 'ecr_image_uri': ECR_IMAGE_URI})}")</textarea>
                                         </div>
 
-                                        <button class="btn btn-primary" id="btn-container-step6" onclick="executeContainerStep6()">
-                                            <i class="fas fa-play me-2"></i>部署到 Runtime
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-container-part8" onclick="executeContainerPart8()" disabled>
+                                                <i class="fas fa-play me-2"></i>执行
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part8-status"></span>
+                                        </div>
 
-                                        <div class="row mb-3" id="log-area-container-6" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
-                                                <div class="code-snippet" style="max-height: 300px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="log-output-container-6" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                        <div class="log-area mt-3" id="log-area-container-part8" style="display: none;">
+                                            <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                            <div class="log-output" style="max-height: 300px; overflow-y: auto;">
+                                                <pre id="log-output-container-part8"></pre>
                                             </div>
                                         </div>
 
-                                        <div class="row mb-3" id="result-area-container-6" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>部署结果</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-container-6" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
-                                            </div>
+                                        <div class="result-area mt-3" id="result-area-container-part8" style="display: none;">
+                                            <h6><i class="fas fa-check-circle me-2"></i>部署结果</h6>
+                                            <pre id="result-output-container-part8"></pre>
                                         </div>
                                     </div>
 
-                                    <!-- Part 8: 检查 Runtime 状态 -->
-                                    <div class="runtime-part">
+                                    <!-- Part 9: 检查 Runtime 状态 -->
+                                    <div class="runtime-part" data-requires-workspace="true">
                                         <h4 class="part-header">
-                                            <i class="fas fa-heartbeat me-2"></i>Part 8: 检查 Runtime 状态
+                                            <i class="fas fa-heartbeat me-2"></i>Part 9: 检查 Runtime 状态
                                         </h4>
-                                        <p class="text-muted">检查 Runtime 部署状态</p>
+                                        <p class="text-muted">检查 Runtime 部署状态（可编辑 Python 代码）</p>
 
-                                        <!-- Demo 代码 -->
-                                        <div class="code-snippet mb-3">
-<pre style="margin: 0;">import boto3
+                                        <div class="mb-3">
+                                            <label class="form-label">Python 代码（可编辑）:</label>
+                                            <textarea class="form-control code-editor" id="container-part9-code" rows="22">import boto3
+import json
 
-agentcore_client = boto3.client('bedrock-agentcore-control', region_name='us-west-2')
+# 配置
+REGION = "{REGION}"
+RUNTIME_ID = "{runtime_id}"
+RUNTIME_VERSION = "1"
 
-response = agentcore_client.get_agent_runtime(
-    agentRuntimeId='{runtime_id}',
-    agentRuntimeVersion='1'
+print(f"正在查询 Runtime 状态: {RUNTIME_ID}")
+
+# 创建客户端
+client = boto3.client('bedrock-agentcore-control', region_name=REGION)
+
+# 查询状态
+response = client.get_agent_runtime(
+    agentRuntimeId=RUNTIME_ID,
+    agentRuntimeVersion=RUNTIME_VERSION
 )
 
+print(f"\n✓ 查询成功!")
 print(f"Status: {response['status']}")
-print(f"ARN: {response['agentRuntimeArn']}")
+print(f"Runtime ARN: {response['agentRuntimeArn']}")
+print(f"Runtime ID: {response['agentRuntimeId']}")
 
 # 状态说明:
 # - CREATING: 创建中
@@ -915,101 +1110,104 @@ print(f"ARN: {response['agentRuntimeArn']}")
 # - CREATE_FAILED: 创建失败
 # - UPDATING: 更新中
 # - UPDATE_FAILED: 更新失败
-# - DELETING: 删除中</pre>
+# - DELETING: 删除中</textarea>
                                         </div>
 
                                         <div class="mb-3">
-                                            <label class="form-label">Runtime ID:</label>
-                                            <input type="text" class="form-control" id="input-container-runtime-id" placeholder="自动填充或手动输入">
+                                            <button class="btn btn-info" id="btn-container-part9" onclick="executeContainerPart9()" disabled>
+                                                <i class="fas fa-search me-2"></i>检查状态
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part9-status"></span>
                                         </div>
 
-                                        <div class="mb-3">
-                                            <label class="form-label">Runtime Version:</label>
-                                            <input type="text" class="form-control" id="input-container-runtime-version" value="1">
-                                        </div>
-
-                                        <button class="btn btn-info" id="btn-container-step7" onclick="executeContainerStep7()">
-                                            <i class="fas fa-search me-2"></i>检查状态
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <div class="row mb-3" id="result-area-container-7" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>状态信息</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-container-7" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                        <div class="log-area mt-3" id="log-area-container-part9" style="display: none;">
+                                            <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                            <div class="log-output" style="max-height: 300px; overflow-y: auto;">
+                                                <pre id="log-output-container-part9"></pre>
                                             </div>
+                                        </div>
+
+                                        <div class="result-area mt-3" id="result-area-container-part9" style="display: none;">
+                                            <h6><i class="fas fa-check-circle me-2"></i>状态信息</h6>
+                                            <pre id="result-output-container-part9"></pre>
                                         </div>
                                     </div>
 
-                                    <!-- Part 9: 调用 Agent -->
-                                    <div class="runtime-part">
+                                    <!-- Part 10: 调用 Agent -->
+                                    <div class="runtime-part" data-requires-workspace="true">
                                         <h4 class="part-header">
-                                            <i class="fas fa-paper-plane me-2"></i>Part 9: 调用 Agent
+                                            <i class="fas fa-paper-plane me-2"></i>Part 10: 调用 Agent
                                         </h4>
-                                        <p class="text-muted">调用已部署的 Container Agent</p>
+                                        <p class="text-muted">调用已部署的 Container Agent（可编辑 Python 代码）</p>
 
-                                        <!-- Demo 代码 -->
-                                        <div class="code-snippet mb-3">
-<pre style="margin: 0;">import boto3
+                                        <div class="mb-3">
+                                            <label class="form-label">Python 代码（可编辑）:</label>
+                                            <textarea class="form-control code-editor" id="container-part10-code" rows="30">import boto3
 import json
 
-agent_core_client = boto3.client('bedrock-agentcore', region_name='us-west-2')
+# 配置
+REGION = "{REGION}"
+RUNTIME_ARN = "{runtime_arn}"
+SESSION_ID = "dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmt"  # 至少 33 个字符
+PROMPT = "请介绍一下 Amazon Bedrock AgentCore Container Deployment"
 
-# Container Deployment 使用 FastAPI 端点格式，需要嵌套在 input 中
+print(f"正在调用 Agent...")
+print(f"Runtime ARN: {RUNTIME_ARN}")
+print(f"Prompt: {PROMPT}")
+
+# 创建客户端
+client = boto3.client('bedrock-agentcore', region_name=REGION)
+
+# Container Deployment 使用 input 格式 (FastAPI InvocationRequest)
 payload = json.dumps({
-    "input": {"prompt": "讲个笑话"}
+    "input": {"prompt": PROMPT}
 })
 
-response = agent_core_client.invoke_agent_runtime(
-    agentRuntimeArn='{runtime_arn}',
-    runtimeSessionId='dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmt',  # Must be 33+ chars
+# 调用 Agent
+response = client.invoke_agent_runtime(
+    agentRuntimeArn=RUNTIME_ARN,
+    runtimeSessionId=SESSION_ID,
     payload=payload,
     qualifier="DEFAULT"
 )
 
+# 读取响应
 response_body = response['response'].read()
 response_data = json.loads(response_body)
-print("Agent Response:", response_data)</pre>
+
+print(f"\n✓ 调用成功!")
+print(f"\nAgent 响应:")
+print(json.dumps(response_data, indent=2, ensure_ascii=False))</textarea>
                                         </div>
 
                                         <div class="mb-3">
-                                            <label class="form-label">Runtime ARN:</label>
-                                            <input type="text" class="form-control" id="input-container-runtime-arn" placeholder="自动填充或手动输入">
+                                            <button class="btn btn-success" id="btn-container-part10" onclick="executeContainerPart10()" disabled>
+                                                <i class="fas fa-play me-2"></i>调用 Agent
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part10-status"></span>
                                         </div>
 
-                                        <div class="mb-3">
-                                            <label class="form-label">Session ID (至少 33 个字符):</label>
-                                            <input type="text" class="form-control" id="input-container-session-id" value="dfmeoagmreaklgmrkleafremoigrmtesogmtrskhmtkrlshmt">
-                                        </div>
-
-                                        <div class="mb-3">
-                                            <label class="form-label">Prompt:</label>
-                                            <textarea class="form-control" id="input-container-prompt" rows="3" placeholder="输入您的问题...">请介绍一下 Amazon Bedrock AgentCore Container Deployment</textarea>
-                                        </div>
-
-                                        <button class="btn btn-success" id="btn-container-step8" onclick="executeContainerStep8()">
-                                            <i class="fas fa-play me-2"></i>调用 Agent
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <div class="row mb-3" id="result-area-container-8" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-robot me-2"></i>Agent 响应</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-container-8" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                        <div class="log-area mt-3" id="log-area-container-part10" style="display: none;">
+                                            <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                            <div class="log-output" style="max-height: 300px; overflow-y: auto;">
+                                                <pre id="log-output-container-part10"></pre>
                                             </div>
+                                        </div>
+
+                                        <div class="result-area mt-3" id="result-area-container-part10" style="display: none;">
+                                            <h6><i class="fas fa-robot me-2"></i>Agent 响应</h6>
+                                            <pre id="result-output-container-part10"></pre>
                                         </div>
                                     </div>
 
-                                    <!-- Part 10: 清理 Runtime -->
-                                    <div class="runtime-part">
+                                    <!-- Part 11: 清理 Runtime -->
+                                    <div class="runtime-part" data-requires-workspace="true">
                                         <h4 class="part-header">
-                                            <i class="fas fa-trash-alt me-2"></i>Part 10: 清理 Runtime
+                                            <i class="fas fa-trash-alt me-2"></i>Part 11: 清理 Runtime
                                         </h4>
-                                        <p class="text-muted">删除已部署的 Container Runtime</p>
+                                        <p class="text-muted">删除已部署的 Container Runtime（可编辑 Python 代码）</p>
 
                                         <div class="alert alert-warning">
                                             <i class="fas fa-exclamation-triangle me-2"></i>
@@ -1017,47 +1215,53 @@ print("Agent Response:", response_data)</pre>
                                             <br><strong>注意:</strong> ECR 镜像不会被删除，需要手动管理。
                                         </div>
 
-                                        <!-- Demo 代码 -->
-                                        <div class="code-snippet mb-3">
-<pre style="margin: 0;">import boto3
+                                        <div class="mb-3">
+                                            <label class="form-label">Python 代码（可编辑）:</label>
+                                            <textarea class="form-control code-editor" id="container-part11-code" rows="24">import boto3
 
 # 配置
-runtime_id = "{runtime_id}"  # 从 Part 7 自动填充
-region = "{REGION}"
+REGION = "{REGION}"
+RUNTIME_ID = "{runtime_id}"
+
+print(f"正在删除 Container Runtime: {RUNTIME_ID}")
+print("警告: 此操作不可逆！")
+
+# 创建客户端
+client = boto3.client('bedrock-agentcore-control', region_name=REGION)
 
 # 删除 Runtime
-agentcore_control_client = boto3.client('bedrock-agentcore-control', region_name=region)
-
-response = agentcore_control_client.delete_agent_runtime(
-    agentRuntimeId=runtime_id
+response = client.delete_agent_runtime(
+    agentRuntimeId=RUNTIME_ID
 )
 
-print(f"✓ Container Runtime 已删除: {runtime_id}")
-print(f"状态: {response['status']}")
+print(f"\n✓ Container Runtime 已删除!")
+print(f"Runtime ID: {RUNTIME_ID}")
+print(f"Status: {response['status']}")
 
 # 注意: ECR 镜像不会被自动删除
 # 如需删除 ECR 镜像，请手动执行:
 # aws ecr batch-delete-image --repository-name {CONTAINER_ECR_REPOSITORY_NAME} \
-#     --image-ids imageTag={CONTAINER_IMAGE_TAG}</pre>
+#     --image-ids imageTag={CONTAINER_IMAGE_TAG}</textarea>
                                         </div>
 
                                         <div class="mb-3">
-                                            <label class="form-label">Runtime ID:</label>
-                                            <input type="text" class="form-control" id="input-container-cleanup-id" placeholder="自动填充或手动输入">
+                                            <button class="btn btn-danger" id="btn-container-part11" onclick="executeContainerPart11()" disabled>
+                                                <i class="fas fa-trash me-2"></i>删除 Runtime
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part11-status"></span>
                                         </div>
 
-                                        <button class="btn btn-danger" id="btn-container-step9" onclick="executeContainerStep9()">
-                                            <i class="fas fa-trash me-2"></i>删除 Runtime
-                                            <span class="spinner-border spinner-border-sm ms-2"></span>
-                                        </button>
-
-                                        <div class="row mb-3" id="result-area-container-9" style="display: none;">
-                                            <div class="col-12">
-                                                <h6><i class="fas fa-check-circle me-2"></i>清理结果</h6>
-                                                <div class="code-snippet" style="max-height: 400px; overflow-y: auto; background-color: #1e1e1e; color: #d4d4d4;">
-                                                    <pre id="result-output-container-9" style="margin: 0; color: #d4d4d4;"></pre>
-                                                </div>
+                                        <div class="log-area mt-3" id="log-area-container-part11" style="display: none;">
+                                            <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
+                                            <div class="log-output" style="max-height: 300px; overflow-y: auto;">
+                                                <pre id="log-output-container-part11"></pre>
                                             </div>
+                                        </div>
+
+                                        <div class="result-area mt-3" id="result-area-container-part11" style="display: none;">
+                                            <h6><i class="fas fa-check-circle me-2"></i>清理结果</h6>
+                                            <pre id="result-output-container-part11"></pre>
                                         </div>
                                     </div>
 
@@ -1070,9 +1274,12 @@ print(f"状态: {response['status']}")
         </div>
     </div>
 
+    <!-- Toast 容器 -->
+    <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+
     <script src="/static/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/script.js"></script>
-    <script src="/static/js/runtime.js?v=2"></script>
+    <script src="/static/js/runtime.js?v=3"></script>
     <script src="/static/js/runtime-container.js?v=2"></script>
 </body>
 </html>
