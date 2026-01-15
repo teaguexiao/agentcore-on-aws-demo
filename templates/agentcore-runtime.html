@@ -749,10 +749,13 @@ print("="*50)</textarea>
 uv add fastapi 'uvicorn[standard]' pydantic httpx strands-agents</textarea>
                                         </div>
 
-                                        <button class="btn btn-primary" id="btn-container-part2" onclick="executeContainerPart2()" disabled>
-                                            <i class="fas fa-play me-2"></i>执行
-                                            <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
-                                        </button>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-container-part2" onclick="executeContainerPart2()" disabled>
+                                                <i class="fas fa-play me-2"></i>执行
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part2-status"></span>
+                                        </div>
 
                                         <div class="log-area mt-3" id="log-area-container-part2" style="display: none;">
                                             <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
@@ -828,10 +831,13 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080)</textarea>
                                         </div>
 
-                                        <button class="btn btn-primary" id="btn-container-part3" onclick="executeContainerPart3()" disabled>
-                                            <i class="fas fa-save me-2"></i>写入文件
-                                            <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
-                                        </button>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-container-part3" onclick="executeContainerPart3()" disabled>
+                                                <i class="fas fa-save me-2"></i>写入文件
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part3-status"></span>
+                                        </div>
 
                                         <div class="file-tree-area mt-3" id="file-tree-container-part3" style="display: none;">
                                             <h6><i class="fas fa-folder-tree me-2"></i>文件树</h6>
@@ -867,10 +873,13 @@ pydantic>=2.0.0
 strands-agents>=0.1.0</textarea>
                                         </div>
 
-                                        <button class="btn btn-outline-secondary" id="btn-container-part4" onclick="executeContainerPart4()" disabled>
-                                            <i class="fas fa-save me-2"></i>写入文件（可选）
-                                            <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
-                                        </button>
+                                        <div class="mb-3">
+                                            <button class="btn btn-outline-secondary" id="btn-container-part4" onclick="executeContainerPart4()" disabled>
+                                                <i class="fas fa-save me-2"></i>写入文件（可选）
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part4-status"></span>
+                                        </div>
 
                                         <div class="file-tree-area mt-3" id="file-tree-container-part4" style="display: none;">
                                             <h6><i class="fas fa-folder-tree me-2"></i>文件树</h6>
@@ -913,10 +922,13 @@ EXPOSE 8080
 CMD ["uv", "run", "uvicorn", "agent:app", "--host", "0.0.0.0", "--port", "8080"]</textarea>
                                         </div>
 
-                                        <button class="btn btn-primary" id="btn-container-part5" onclick="executeContainerPart5()" disabled>
-                                            <i class="fas fa-save me-2"></i>写入文件
-                                            <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
-                                        </button>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-container-part5" onclick="executeContainerPart5()" disabled>
+                                                <i class="fas fa-save me-2"></i>写入文件
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part5-status"></span>
+                                        </div>
 
                                         <div class="file-tree-area mt-3" id="file-tree-container-part5" style="display: none;">
                                             <h6><i class="fas fa-folder-tree me-2"></i>文件树</h6>
@@ -936,10 +948,13 @@ CMD ["uv", "run", "uvicorn", "agent:app", "--host", "0.0.0.0", "--port", "8080"]
                                             <textarea class="form-control code-editor" id="container-part6-command" rows="2">aws ecr get-login-password --region {REGION} | docker login --username AWS --password-stdin {ACCOUNT_ID}.dkr.ecr.{REGION}.amazonaws.com</textarea>
                                         </div>
 
-                                        <button class="btn btn-primary" id="btn-container-part6" onclick="executeContainerPart6()" disabled>
-                                            <i class="fas fa-play me-2"></i>执行
-                                            <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
-                                        </button>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-container-part6" onclick="executeContainerPart6()" disabled>
+                                                <i class="fas fa-play me-2"></i>执行
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part6-status"></span>
+                                        </div>
 
                                         <div class="log-area mt-3" id="log-area-container-part6" style="display: none;">
                                             <h6><i class="fas fa-terminal me-2"></i>执行日志</h6>
@@ -970,10 +985,13 @@ CMD ["uv", "run", "uvicorn", "agent:app", "--host", "0.0.0.0", "--port", "8080"]
   --push .</textarea>
                                         </div>
 
-                                        <button class="btn btn-primary" id="btn-container-part7" onclick="executeContainerPart7()" disabled>
-                                            <i class="fas fa-play me-2"></i>构建并推送
-                                            <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
-                                        </button>
+                                        <div class="mb-3">
+                                            <button class="btn btn-primary" id="btn-container-part7" onclick="executeContainerPart7()" disabled>
+                                                <i class="fas fa-play me-2"></i>构建并推送
+                                                <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                                            </button>
+                                            <span class="execution-status" id="container-part7-status"></span>
+                                        </div>
 
                                         <div class="log-area mt-3" id="log-area-container-part7" style="display: none;">
                                             <h6><i class="fas fa-terminal me-2"></i>构建日志</h6>
@@ -1032,14 +1050,12 @@ print(f"Status: CREATING")
 print(f"\n__RESULT__:{json.dumps({'runtime_arn': runtime_arn, 'runtime_id': runtime_id, 'agent_name': AGENT_NAME, 'ecr_image_uri': ECR_IMAGE_URI})}")</textarea>
                                         </div>
 
-                                        <div class="btn-group mb-3">
+                                        <div class="mb-3">
                                             <button class="btn btn-primary" id="btn-container-part8" onclick="executeContainerPart8()" disabled>
                                                 <i class="fas fa-play me-2"></i>执行
                                                 <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
                                             </button>
-                                            <button class="btn btn-outline-secondary" onclick="resetContainerCodeTemplate('part8')">
-                                                <i class="fas fa-undo me-2"></i>重置
-                                            </button>
+                                            <span class="execution-status" id="container-part8-status"></span>
                                         </div>
 
                                         <div class="log-area mt-3" id="log-area-container-part8" style="display: none;">
@@ -1097,14 +1113,12 @@ print(f"Runtime ID: {response['agentRuntimeId']}")
 # - DELETING: 删除中</textarea>
                                         </div>
 
-                                        <div class="btn-group mb-3">
+                                        <div class="mb-3">
                                             <button class="btn btn-info" id="btn-container-part9" onclick="executeContainerPart9()" disabled>
-                                                <i class="fas fa-search me-2"></i>执行
+                                                <i class="fas fa-search me-2"></i>检查状态
                                                 <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
                                             </button>
-                                            <button class="btn btn-outline-secondary" onclick="resetContainerCodeTemplate('part9')">
-                                                <i class="fas fa-undo me-2"></i>重置
-                                            </button>
+                                            <span class="execution-status" id="container-part9-status"></span>
                                         </div>
 
                                         <div class="log-area mt-3" id="log-area-container-part9" style="display: none;">
@@ -1167,14 +1181,12 @@ print(f"\nAgent 响应:")
 print(json.dumps(response_data, indent=2, ensure_ascii=False))</textarea>
                                         </div>
 
-                                        <div class="btn-group mb-3">
+                                        <div class="mb-3">
                                             <button class="btn btn-success" id="btn-container-part10" onclick="executeContainerPart10()" disabled>
-                                                <i class="fas fa-play me-2"></i>执行
+                                                <i class="fas fa-play me-2"></i>调用 Agent
                                                 <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
                                             </button>
-                                            <button class="btn btn-outline-secondary" onclick="resetContainerCodeTemplate('part10')">
-                                                <i class="fas fa-undo me-2"></i>重置
-                                            </button>
+                                            <span class="execution-status" id="container-part10-status"></span>
                                         </div>
 
                                         <div class="log-area mt-3" id="log-area-container-part10" style="display: none;">
@@ -1232,14 +1244,12 @@ print(f"Status: {response['status']}")
 #     --image-ids imageTag={CONTAINER_IMAGE_TAG}</textarea>
                                         </div>
 
-                                        <div class="btn-group mb-3">
+                                        <div class="mb-3">
                                             <button class="btn btn-danger" id="btn-container-part11" onclick="executeContainerPart11()" disabled>
-                                                <i class="fas fa-trash me-2"></i>执行
+                                                <i class="fas fa-trash me-2"></i>删除 Runtime
                                                 <span class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
                                             </button>
-                                            <button class="btn btn-outline-secondary" onclick="resetContainerCodeTemplate('part11')">
-                                                <i class="fas fa-undo me-2"></i>重置
-                                            </button>
+                                            <span class="execution-status" id="container-part11-status"></span>
                                         </div>
 
                                         <div class="log-area mt-3" id="log-area-container-part11" style="display: none;">

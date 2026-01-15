@@ -53,6 +53,38 @@ const ContainerWorkspaceState = {
 // 配置缓存
 let containerConfig = null;
 
+// ==================== 状态标识辅助函数 ====================
+
+function updateContainerStatus(partId, status, message, duration = null) {
+    const statusSpan = document.getElementById(`container-${partId}-status`);
+    if (!statusSpan) return;
+
+    switch (status) {
+        case 'running':
+            statusSpan.innerHTML = '<span class="text-primary"><i class="fas fa-spinner fa-spin me-1"></i>执行中...</span>';
+            statusSpan.className = 'execution-status running';
+            break;
+        case 'success':
+            const durationText = duration ? ` (${duration.toFixed(2)}s)` : '';
+            statusSpan.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>${message || '完成'}${durationText}</span>`;
+            statusSpan.className = 'execution-status success';
+            break;
+        case 'error':
+            statusSpan.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>${message || '失败'}</span>`;
+            statusSpan.className = 'execution-status error';
+            break;
+        default:
+            statusSpan.innerHTML = '';
+            statusSpan.className = 'execution-status';
+    }
+}
+
+function clearAllContainerStatus() {
+    for (let i = 2; i <= 11; i++) {
+        updateContainerStatus(`part${i}`, 'clear');
+    }
+}
+
 // ==================== 工作空间管理 ====================
 
 async function initContainerWorkspace() {
@@ -111,6 +143,10 @@ async function cleanupContainerWorkspace() {
         if (data.success) {
             ContainerWorkspaceState.clear();
             updateContainerWorkspaceUI();
+            // 重置所有代码模板和 UI
+            resetAllContainerTemplates();
+            clearAllContainerStatus();
+            hideAllContainerLogAreas();
             showToast('Container 工作环境已清理', 'success');
         } else {
             showToast(data.message || '清理失败', 'error');
@@ -440,20 +476,20 @@ function executeContainerPart2() {
 
     btn.disabled = true;
     spinner.style.display = 'inline-block';
+    updateContainerStatus('part2', 'running');
 
     executeContainerCommand('part2', command, (result) => {
         btn.disabled = false;
         spinner.style.display = 'none';
         if (result.success) {
-            showToast('命令执行成功', 'success');
+            updateContainerStatus('part2', 'success', '完成', result.duration);
         } else {
-            showToast('命令执行失败', 'error');
+            updateContainerStatus('part2', 'error', result.error || '执行失败');
         }
     });
 }
 
 function executeContainerPart3() {
-    console.log('executeContainerPart3 called');
     const btn = document.getElementById('btn-container-part3');
     const spinner = btn.querySelector('.spinner-border');
     const filePath = document.getElementById('container-part3-filepath').value;
@@ -461,24 +497,26 @@ function executeContainerPart3() {
 
     btn.disabled = true;
     spinner.style.display = 'inline-block';
+    updateContainerStatus('part3', 'running');
 
     writeContainerFile('part3', filePath, content)
         .then(result => {
-            console.log('writeContainerFile completed:', result);
+            if (result.success) {
+                updateContainerStatus('part3', 'success', `写入成功 (${formatFileSize(result.size)})`);
+            } else {
+                updateContainerStatus('part3', 'error', result.message || '写入失败');
+            }
         })
         .catch(error => {
-            console.error('writeContainerFile error:', error);
-            showToast('写入失败', 'error');
+            updateContainerStatus('part3', 'error', '写入失败');
         })
         .finally(() => {
-            console.log('writeContainerFile finally');
             btn.disabled = false;
             spinner.style.display = 'none';
         });
 }
 
 function executeContainerPart4() {
-    console.log('executeContainerPart4 called');
     const btn = document.getElementById('btn-container-part4');
     const spinner = btn.querySelector('.spinner-border');
     const filePath = document.getElementById('container-part4-filepath').value;
@@ -486,14 +524,18 @@ function executeContainerPart4() {
 
     btn.disabled = true;
     spinner.style.display = 'inline-block';
+    updateContainerStatus('part4', 'running');
 
     writeContainerFile('part4', filePath, content)
         .then(result => {
-            console.log('writeContainerFile part4 completed:', result);
+            if (result.success) {
+                updateContainerStatus('part4', 'success', `写入成功 (${formatFileSize(result.size)})`);
+            } else {
+                updateContainerStatus('part4', 'error', result.message || '写入失败');
+            }
         })
         .catch(error => {
-            console.error('writeContainerFile part4 error:', error);
-            showToast('写入失败', 'error');
+            updateContainerStatus('part4', 'error', '写入失败');
         })
         .finally(() => {
             btn.disabled = false;
@@ -502,7 +544,6 @@ function executeContainerPart4() {
 }
 
 function executeContainerPart5() {
-    console.log('executeContainerPart5 called');
     const btn = document.getElementById('btn-container-part5');
     const spinner = btn.querySelector('.spinner-border');
     const filePath = document.getElementById('container-part5-filepath').value;
@@ -510,14 +551,18 @@ function executeContainerPart5() {
 
     btn.disabled = true;
     spinner.style.display = 'inline-block';
+    updateContainerStatus('part5', 'running');
 
     writeContainerFile('part5', filePath, content)
         .then(result => {
-            console.log('writeContainerFile part5 completed:', result);
+            if (result.success) {
+                updateContainerStatus('part5', 'success', `写入成功 (${formatFileSize(result.size)})`);
+            } else {
+                updateContainerStatus('part5', 'error', result.message || '写入失败');
+            }
         })
         .catch(error => {
-            console.error('writeContainerFile part5 error:', error);
-            showToast('写入失败', 'error');
+            updateContainerStatus('part5', 'error', '写入失败');
         })
         .finally(() => {
             btn.disabled = false;
@@ -532,50 +577,46 @@ function executeContainerPart6() {
 
     btn.disabled = true;
     spinner.style.display = 'inline-block';
+    updateContainerStatus('part6', 'running');
 
     executeContainerCommand('part6', command, (result) => {
         btn.disabled = false;
         spinner.style.display = 'none';
         if (result.success) {
-            showToast('ECR 登录成功', 'success');
+            updateContainerStatus('part6', 'success', '登录成功', result.duration);
         } else {
-            showToast('ECR 登录失败', 'error');
+            updateContainerStatus('part6', 'error', result.error || 'ECR 登录失败');
         }
     });
 }
 
 function executeContainerPart7() {
-    console.log('executeContainerPart7 called');
     const btn = document.getElementById('btn-container-part7');
     const spinner = btn.querySelector('.spinner-border');
     const commandEl = document.getElementById('container-part7-command');
 
     if (!commandEl) {
-        console.error('container-part7-command element not found');
-        showToast('找不到命令输入框', 'error');
+        updateContainerStatus('part7', 'error', '找不到命令输入框');
         return;
     }
 
     const command = commandEl.value;
-    console.log('Command:', command);
-
     if (!command || !command.trim()) {
-        showToast('请输入构建命令', 'error');
+        updateContainerStatus('part7', 'error', '请输入构建命令');
         return;
     }
 
     btn.disabled = true;
     spinner.style.display = 'inline-block';
-
-    showToast('Docker 构建中，请耐心等待...', 'info');
+    updateContainerStatus('part7', 'running');
 
     executeContainerCommand('part7', command, (result) => {
         btn.disabled = false;
         spinner.style.display = 'none';
         if (result.success) {
-            showToast('Docker 构建推送成功', 'success');
+            updateContainerStatus('part7', 'success', '构建推送成功', result.duration);
         } else {
-            showToast('Docker 构建失败', 'error');
+            updateContainerStatus('part7', 'error', result.error || '构建失败');
         }
     });
 }
@@ -587,16 +628,17 @@ function executeContainerPart8() {
 
     btn.disabled = true;
     spinner.style.display = 'inline-block';
+    updateContainerStatus('part8', 'running');
 
     executeContainerPython('part8', code, (result) => {
         btn.disabled = false;
         spinner.style.display = 'none';
         if (result.success) {
-            showToast('Runtime 部署成功', 'success');
+            updateContainerStatus('part8', 'success', '部署成功', result.duration);
             // 更新 Part 9-11 的代码中的变量
             updatePart9to11CodeVariables();
         } else {
-            showToast('Runtime 部署失败', 'error');
+            updateContainerStatus('part8', 'error', result.error || '部署失败');
         }
     });
 }
@@ -608,14 +650,15 @@ function executeContainerPart9() {
 
     btn.disabled = true;
     spinner.style.display = 'inline-block';
+    updateContainerStatus('part9', 'running');
 
     executeContainerPython('part9', code, (result) => {
         btn.disabled = false;
         spinner.style.display = 'none';
         if (result.success) {
-            showToast('Runtime 状态查询成功', 'success');
+            updateContainerStatus('part9', 'success', '查询成功', result.duration);
         } else {
-            showToast('查询失败', 'error');
+            updateContainerStatus('part9', 'error', result.error || '查询失败');
         }
     });
 }
@@ -627,14 +670,15 @@ function executeContainerPart10() {
 
     btn.disabled = true;
     spinner.style.display = 'inline-block';
+    updateContainerStatus('part10', 'running');
 
     executeContainerPython('part10', code, (result) => {
         btn.disabled = false;
         spinner.style.display = 'none';
         if (result.success) {
-            showToast('Agent 调用成功', 'success');
+            updateContainerStatus('part10', 'success', '调用成功', result.duration);
         } else {
-            showToast('调用失败', 'error');
+            updateContainerStatus('part10', 'error', result.error || '调用失败');
         }
     });
 }
@@ -650,12 +694,13 @@ function executeContainerPart11() {
 
     btn.disabled = true;
     spinner.style.display = 'inline-block';
+    updateContainerStatus('part11', 'running');
 
     executeContainerPython('part11', code, async (result) => {
         btn.disabled = false;
         spinner.style.display = 'none';
         if (result.success) {
-            showToast('Runtime 已删除', 'success');
+            updateContainerStatus('part11', 'success', '已删除', result.duration);
             // 清除 runtime 相关状态（前端）
             ContainerWorkspaceState.runtime_id = null;
             ContainerWorkspaceState.runtime_arn = null;
@@ -674,7 +719,7 @@ function executeContainerPart11() {
 
             updateContainerWorkspaceUI();
         } else {
-            showToast('删除失败', 'error');
+            updateContainerStatus('part11', 'error', result.error || '删除失败');
         }
     });
 }
@@ -823,6 +868,52 @@ function resetContainerCodeTemplate(partId) {
     } else {
         showToast('无法重置代码', 'error');
     }
+}
+
+function resetAllContainerTemplates() {
+    // 重置所有代码模板到原始状态
+    Object.keys(ContainerCodeTemplates).forEach(elementId => {
+        const element = document.getElementById(elementId);
+        const originalTemplate = ContainerCodeTemplates[elementId];
+        if (element && originalTemplate) {
+            element.value = originalTemplate;
+        }
+    });
+
+    // 重新应用配置变量替换（不包含 runtime 相关变量）
+    if (containerConfig) {
+        updateContainerDemoCodeVariables(containerConfig);
+    }
+}
+
+function hideAllContainerLogAreas() {
+    // 隐藏所有日志区域和文件树区域
+    for (let i = 2; i <= 11; i++) {
+        const logArea = document.getElementById(`log-area-container-part${i}`);
+        if (logArea) {
+            logArea.style.display = 'none';
+            const logOutput = document.getElementById(`log-output-container-part${i}`);
+            if (logOutput) logOutput.textContent = '';
+        }
+
+        const fileTree = document.getElementById(`file-tree-container-part${i}`);
+        if (fileTree) {
+            fileTree.style.display = 'none';
+        }
+
+        const resultArea = document.getElementById(`result-area-container-part${i}`);
+        if (resultArea) {
+            resultArea.style.display = 'none';
+            const resultOutput = document.getElementById(`result-output-container-part${i}`);
+            if (resultOutput) resultOutput.textContent = '';
+        }
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 }
 
 function showContainerToast(message, type = 'info') {
